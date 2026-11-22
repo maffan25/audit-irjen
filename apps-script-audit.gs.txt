@@ -13,6 +13,7 @@ function setup() {       // jalankan sekali
   ].forEach(function (t) {
     var sh = ss.getSheetByName(t[0]) || ss.insertSheet(t[0]);
     if (sh.getLastRow() === 0) { sh.appendRow(t[1]); sh.setFrozenRows(1); }
+    sh.getRange(1, 1, sh.getMaxRows(), 2).setNumberFormat('@');
   });
 }
 function ss_() { return SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet(); }
@@ -52,6 +53,7 @@ function sinkron_(d) {   // admin mengirim daftar kementerian + token
   var sh = ss_().getSheetByName('Kementerian'), L = d.daftar || [];
   if (!Array.isArray(L) || L.length > 60) return { ok: false, error: 'data' };
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 5).clearContent();
+  sh.getRange(1, 1, Math.max(sh.getMaxRows(), L.length + 1), 5).setNumberFormat('@');
   if (L.length) sh.getRange(2, 1, L.length, 5).setValues(L.map(function (m) { return [s_(m.id, 40), s_(m.name, 120), s_(m.head, 120), s_(m.tk, 40), s_(m.periode, 20)]; }));
   return { ok: true };
 }
