@@ -1,0 +1,51 @@
+PANDUAN AUDIT KINERJA SAMASTA
+=============================
+
+ISI FOLDER
+- index.html            : web audit untuk admin (dashboard, kotak masuk, barcode, audit, laporan)
+- isi.html              : halaman isian kementerian (tujuan barcode, tidak perlu login)
+- tema.css              : tampilan bersama (gaya Kabinet Samasta)
+- audit-sync.js         : tambahan admin (kotak masuk, barcode, panel audit, sinkronisasi)
+- audit-api.js          : penghubung ke Google Apps Script (dan mode uji lokal)
+- qr.js                 : pembuat QR Code mandiri (dari Samasta, tanpa internet)
+- config.js             : SATU-SATUNYA berkas yang perlu kamu isi
+- logo.webp             : logo Kabinet Samasta
+- apps-script-audit.gs.txt : kode backend Google Sheets
+
+ALUR
+1. Admin menambah kementerian di menu Kementerian. Barcode tiap kementerian dibuat otomatis (menu Barcode).
+2. Admin mencetak atau mengunduh poster barcode, lalu membagikannya ke tiap kementerian.
+3. Kementerian memindai barcode, mengisi program kerja (5 langkah), dan mengirim.
+4. Isian masuk ke Kotak Masuk admin. Admin membuka isian, membandingkan "klaim kementerian" dengan bukti,
+   mengisi nilai audit, lalu: Simpan nilai / Minta revisi (dengan catatan) / Sahkan.
+5. Kementerian membuka barcode yang sama untuk melihat status dan catatan. Bila diminta revisi, mereka
+   memperbaiki dan mengirim ulang. Isian yang sudah disahkan terkunci.
+Nilai akhir memakai NILAI AUDIT. Selama belum diaudit, nilai sementara memakai klaim kementerian
+(ditandai "Menunggu audit").
+
+MENYAMBUNGKAN KE GOOGLE SHEETS (sekali saja)
+1. Buat Google Sheet BARU khusus audit.
+2. Ekstensi > Apps Script. Tempel isi apps-script-audit.gs.txt.
+3. Isi KODE_AKSES (minimal 6 karakter). Ini kode yang diketik admin di halaman masuk.
+4. Jalankan fungsi "setup" sekali (beri izin).
+5. Terapkan > Deployment baru > Aplikasi web. Jalankan sebagai: Saya. Akses: Siapa saja.
+6. Salin URL berakhiran /exec ke config.js (AUDIT_ENDPOINT).
+   Tes: buka URL itu di browser, harus muncul "ok":true, "sheet":"terhubung", "kode":"sudah diatur".
+7. Bila kode skrip diubah, buat Deployment BARU lalu perbarui URL.
+
+DEPLOY (GitHub + Vercel, seperti web Samasta lainnya)
+1. Unggah seluruh isi folder ke repositori GitHub, hubungkan ke Vercel.
+2. Isi AUDIT_BASE di config.js dengan alamat situs, misalnya https://audit-samasta.vercel.app
+3. Buka index.html, masuk dengan KODE_AKSES, lalu buka menu Barcode (daftar kementerian otomatis dikirim ke server).
+4. Bila nama kementerian diubah atau barcode diganti, buka menu Barcode agar server diperbarui.
+
+MODE UJI (tanpa server)
+Selama AUDIT_ENDPOINT kosong, semua data hanya di peramban ini dan kode akses admin memakai kode lama dari web audit kamu.
+Setelah AUDIT_ENDPOINT terisi, kode akses diperiksa server (KODE_AKSES di Apps Script).
+
+KEAMANAN
+- Situs ini statis. Barcode berisi token acak per kementerian; tanpa token, server menolak isian.
+  Bila barcode bocor, klik "Ganti barcode" (tautan lama langsung mati).
+- Data admin tersimpan di peramban admin (backup lewat menu Laporan). Isian kementerian tersimpan di Google Sheet.
+- Server membaca isian dan menyimpan audit hanya dengan KODE_AKSES (10 kali salah = ditahan 10 menit).
+- Gunakan Sheet khusus dan jangan bagikan aksesnya.

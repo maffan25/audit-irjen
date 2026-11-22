@@ -1,0 +1,74 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Isian Kinerja Kementerian | Kabinet Samasta</title>
+<meta name="robots" content="noindex"><meta name="theme-color" content="#0d2a38"><link rel="icon" href="logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="tema.css">
+<style>
+body{background:var(--bg)}.top{background:var(--n);color:#f6f1de;padding:22px 20px 0;background-image:radial-gradient(60% 80% at 90% 100%,rgba(248,210,74,.22),transparent 70%),radial-gradient(50% 70% at 5% 0%,rgba(20,112,90,.5),transparent 70%)}
+.wrap{width:min(680px,100%);margin:auto}.brand{display:flex;gap:12px;align-items:center}.brand img{width:46px;border-radius:26%;box-shadow:0 0 0 2px var(--n),0 0 0 3.5px #d9b872}.brand small{display:block;color:#a9cbc4;font-size:.78rem}.brand b{font-size:.95rem}
+.top h1{color:#fff;margin:20px 0 6px;font-size:clamp(1.5rem,6vw,2rem)}.top p{color:#cde0dc;margin:0 0 20px}
+.rail{display:flex;gap:4px;padding:0 0 0;margin-top:6px}.rail i{flex:1;height:5px;border-radius:5px 5px 0 0;background:rgba(255,255,255,.18)}.rail i.d{background:var(--g)}
+main{padding:22px 16px 90px;max-width:680px;margin:auto}.bar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,251,239,.94);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--bd);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}.bar .wrap{display:flex;gap:10px}.bar .bt{flex:1}
+.hint{color:var(--mu);font-size:.88rem}.kc{border:1.5px solid var(--bd);border-radius:18px;padding:12px;margin-bottom:10px;background:#fff}.kc .kr{grid-template-columns:1fr 1fr 1fr}.kc .kr .kn{grid-column:1/-1}.kc .x{margin-top:8px}
+.ring{width:84px;height:104px;margin:0 auto 18px;background:var(--g);border-radius:var(--arch);display:grid;place-items:center;font:700 2.2rem var(--serif);color:var(--n)}
+.cd.sum p{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--bd);padding:6px 0;margin:0}.cd.sum span{color:var(--mu)}
+</style></head><body>
+<header class="top"><div class="wrap"><div class="brand"><img src="logo.webp" alt="Kabinet Samasta"><div><b>Kabinet Samasta</b><small>Audit Kinerja Program Kerja</small></div></div><h1 id="jd">Memuat…</h1><p id="sb2"></p><div class="rail" id="rail"></div></div></header>
+<main id="m"></main><div class="bar" id="bar" hidden><div class="wrap"><button class="bt" id="bk">Kembali</button><button class="bt p" id="nx">Lanjut</button></div></div><div id="toast"></div>
+<script src="config.js"></script><script src="audit-api.js"></script>
+<script>
+const $=s=>document.querySelector(s),E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),uid=()=>Math.random().toString(36).slice(2,8);
+const P=new URLSearchParams(location.hash.slice(1)),MID=P.get('m')||'',TKN=P.get('k')||'',SK='isi_'+MID;
+let INFO=null,ST=0,SID=null,D={},LIST=[];const STEPS=['Program','Tujuan & KPI','Pelaksanaan','Dampak','Bukti'];
+try{LIST=JSON.parse(localStorage.getItem(SK+'_l'))||[]}catch(e){}
+function toast(m){const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),3200)}
+const base=()=>({name:'',pic:'',date:'',period:'',type:'',status:'Berjalan',budget:'',obj:'',kr:'',okr:70,kpis:[{n:'',u:'',t:'',r:'',w:100}],time:80,qual:80,adm:80,impact:70,sat:4,benef:'',outcome:'',evidence:''});
+const fl=(l,h,s)=>`<label class="fl"><span>${l}</span>${h}${s?`<small>${s}</small>`:''}</label>`;
+const inp=(k,t='text',x='')=>`<input data-k="${k}" type="${t}" value="${E(D[k])}" ${x}>`;
+const sld=(k,l,s)=>`<div class="fl"><div class="sc"><span style="font-weight:600;font-size:.85rem">${l}</span><output id="o_${k}">${D[k]}</output><input type="range" min="0" max="100" step="5" data-k="${k}" value="${D[k]}" oninput="$('#o_${k}').value=this.value"><small>${s}</small></div></div>`;
+async function init(){
+  if(!MID||!TKN)return fail('Tautan tidak lengkap','Pindai ulang barcode dari kementerianmu, atau minta tautan baru kepada admin.');
+  const r=await AUDIT.api('info',{mid:MID,tk:TKN});
+  if(!r.ok)return fail(r.error=='jaringan'?'Server tidak terjangkau':'Barcode tidak berlaku',r.error=='jaringan'?'Periksa koneksi internet lalu muat ulang halaman.':'Barcode ini sudah diganti atau salah. Minta barcode terbaru kepada admin.');
+  INFO=r;$('#jd').textContent=r.nama;home()}
+function fail(t,s){$('#jd').textContent=t;$('#sb2').textContent=s;$('#m').innerHTML='';$('#bar').hidden=true}
+function rail(){$('#rail').innerHTML=STEPS.map((_,i)=>`<i class="${i<=ST?'d':''}"></i>`).join('')}
+/* ---- beranda: daftar isian ---- */
+async function home(){ST=-1;rail();$('#bar').hidden=true;$('#sb2').textContent='Kepala: '+(INFO.kepala||'-')+(INFO.periode?' · Periode '+INFO.periode:'');
+  $('#m').innerHTML='<div class="cd" style="text-align:center"><h3>Tambah program kerja</h3><p class="hint">Isi satu program kerja per formulir. Butuh sekitar 5 menit. Jawaban tersimpan otomatis sebagai draf.</p><button class="bt p" onclick="baru()">Isi program kerja baru</button></div><div id="ls"></div>';
+  if(LIST.length){const r=await AUDIT.api('status',{mid:MID,tk:TKN,sids:LIST.map(x=>x.sid)});const S={};(r.data||[]).forEach(x=>S[x.sid]=x);
+    const lb={menunggu:['Menunggu audit',2],revisi:['Perlu revisi',3],sah:['Disahkan',0]};
+    $('#ls').innerHTML='<h3 style="margin:22px 0 10px">Isian yang sudah dikirim</h3>'+LIST.map(x=>{const s=S[x.sid]||{},a=lb[s.aud];return`<div class="cd" style="margin-bottom:10px"><div style="display:flex;gap:10px;justify-content:space-between;align-items:center"><b>${E(x.name)}</b>${a?`<span class="b f${a[1]}">${a[0]}</span>`:''}</div>${s.cat?`<div class="wn" style="margin-top:10px"><b>Catatan admin:</b> ${E(s.cat)}</div>`:''}${s.aud=='revisi'&&s.data?`<button class="bt s p" style="margin-top:10px" onclick="revisi('${x.sid}')">Perbaiki isian</button>`:''}</div>`}).join('');window._S=S}
+  const dr=localStorage.getItem(SK+'_d');if(dr)$('#m').insertAdjacentHTML('afterbegin','<div class="wn">Ada draf yang belum dikirim. <button class="bt s" onclick="baru(1)">Lanjutkan draf</button></div>')}
+function baru(lanjut){SID=null;D=base();if(lanjut){try{D=Object.assign(base(),JSON.parse(localStorage.getItem(SK+'_d')))}catch(e){}}form()}
+function revisi(sid){const s=(window._S||{})[sid];if(!s||!s.data)return;SID=sid;D=Object.assign(base(),s.data);form()}
+/* ---- formulir bertahap ---- */
+function form(){ST=0;$('#bar').hidden=false;$('#sb2').textContent=SID?'Perbaiki isian sesuai catatan admin':'Isi dengan data yang sebenarnya. Admin akan memeriksa bukti.';draw()}
+function draw(){rail();const s=ST,h=[];
+  if(s==0)h.push(fl('Nama program kerja *',inp('name')),fl('Penanggung jawab *',inp('pic')),fl('Tanggal pelaksanaan *',inp('date','date')),fl('Periode (bulan)',inp('period','month')),fl('Jenis program kerja',inp('type','text','placeholder="Contoh: Seminar, Pengabdian, Advokasi"')),fl('Status *',`<select data-k="status">${['Selesai','Berjalan','Belum dimulai','Tidak terlaksana','Dibatalkan'].map(x=>`<option ${D.status==x?'selected':''}>${x}</option>`).join('')}</select>`),fl('Anggaran terpakai (Rp)',inp('budget','number','min=0 inputmode="numeric"')));
+  if(s==1)h.push(fl('Tujuan program (Objective) *',inp('obj','text','placeholder="Contoh: Meningkatkan keterlibatan mahasiswa"')),fl('Hasil kunci (Key Result)',inp('kr')),sld('okr','Keterkaitan dengan tujuan strategis kabinet','0 = tidak terkait, 100 = sangat terkait.'),'<h3 style="margin-top:18px">Indikator keberhasilan (KPI)</h3><p class="hint">Total bobot semua KPI harus 100%.</p><div id="kl">'+D.kpis.map(kpi).join('')+'</div><button class="bt s" onclick="addK()">Tambah KPI</button><p id="kw" style="margin-top:8px"></p>');
+  if(s==2)h.push('<p class="hint">Nilai dirimu dengan jujur. Admin akan membandingkannya dengan bukti.</p>',sld('time','Ketepatan waktu','Pelaksanaan sesuai jadwal rencana.'),sld('qual','Kualitas pelaksanaan','Acara berjalan sesuai standar dan rencana.'),sld('adm','Kelengkapan administrasi','Proposal, LPJ, absensi, dan dokumentasi lengkap.'));
+  if(s==3)h.push(fl('Jumlah penerima manfaat',inp('benef','number','min=0 inputmode="numeric"')),sld('impact','Dampak program','0 = tanpa dampak, 100 = dampak nyata dan berkelanjutan.'),fl('Perubahan yang dihasilkan (outcome)',inp('outcome')),`<div class="fl"><span style="font-weight:600;font-size:.85rem;display:block;margin-bottom:5px">Kepuasan peserta (1–5)</span><div class="stk">${[1,2,3,4,5].map(n=>`<button class="${n<=Math.round(D.sat)?'on':''}" onclick="star(${n})" aria-label="${n} bintang">★</button>`).join('')}</div><small class="hint" style="display:block;text-align:center">Dari survei peserta bila ada. 1 sangat tidak puas, 5 sangat puas.</small></div>`);
+  if(s==4)h.push(fl('Bukti pendukung','<textarea data-k="evidence" placeholder="Satu tautan atau nama dokumen per baris&#10;LPJ: https://…&#10;Dokumentasi: https://…">'+E(D.evidence)+'</textarea>','Wajib bila status Selesai atau Berjalan.'),'<div class="cd sum" id="rv"></div>');
+  $('#m').innerHTML=(s==4?'':'')+h.join('')+'<div class="er" id="er"></div>';$('#m').dataset.s=s;if(s==1)kwt();if(s==4)review();
+  $('#bk').textContent=s==0?'Batal':'Kembali';$('#nx').textContent=s==4?'Kirim isian':'Lanjut';scrollTo(0,0)}
+const kpi=k=>`<div class="kc"><div class="kr"><input class="kn" placeholder="Nama KPI, contoh: Jumlah peserta" value="${E(k.n)}"><input class="ku" placeholder="Satuan" value="${E(k.u)}"><input class="kt" type="number" min="0" inputmode="decimal" placeholder="Target" value="${k.t}"><input class="kv" type="number" min="0" inputmode="decimal" placeholder="Realisasi" value="${k.r}"></div><div class="kr" style="grid-template-columns:auto 1fr auto;margin:8px 0 0;align-items:center"><span class="hint">Bobot KPI (%)</span><input class="kw" type="number" min="0" max="100" inputmode="numeric" placeholder="Bobot %" value="${k.w}" oninput="kwt()"><button class="bt s r" onclick="this.closest('.kc').remove();kwt()">Hapus</button></div></div>`;
+function addK(){grab();D.kpis.push({n:'',u:'',t:'',r:'',w:''});draw()}
+function kwt(){const t=[...document.querySelectorAll('.kw')].reduce((a,i)=>a+(+i.value||0),0),e=$('#kw');if(e)e.innerHTML=`Total bobot: <b style="color:var(--c${t==100?0:4})">${t}%</b>`}
+function star(n){D.sat=n;document.querySelectorAll('.stk button').forEach((b,i)=>b.classList.toggle('on',i<n))}
+function grab(){document.querySelectorAll('[data-k]').forEach(e=>{D[e.dataset.k]=e.type=='range'||e.type=='number'&&['okr','time','qual','adm','impact'].includes(e.dataset.k)?+e.value:e.value.trim?e.value.trim():e.value});
+  if(document.querySelector('.kc'))D.kpis=[...document.querySelectorAll('.kc')].map(r=>({n:r.querySelector('.kn').value.trim(),u:r.querySelector('.ku').value.trim(),t:r.querySelector('.kt').value,r:r.querySelector('.kv').value,w:r.querySelector('.kw').value}));
+  try{if(!SID)localStorage.setItem(SK+'_d',JSON.stringify(D))}catch(e){}}
+function check(s){const e=[];
+  if(s==0){if(!D.name)e.push('Nama program kerja wajib diisi.');if(!D.pic)e.push('Penanggung jawab wajib diisi.');if(!D.date)e.push('Tanggal pelaksanaan wajib diisi.')}
+  if(s==1){if(!D.obj)e.push('Tujuan program wajib diisi.');const k=D.kpis;if(!k.length)e.push('Tambahkan minimal satu KPI.');k.forEach((x,i)=>{if(!x.n||x.t===''||x.r===''||x.w==='')e.push('KPI '+(i+1)+': nama, target, realisasi, dan bobot wajib diisi.');else if(!(+x.t>0))e.push('KPI '+(i+1)+': target harus lebih dari 0.')});if(k.reduce((a,x)=>a+(+x.w||0),0)!=100)e.push('Total bobot KPI harus tepat 100%.')}
+  if(s==4&&['Selesai','Berjalan'].includes(D.status)&&!D.evidence)e.push('Status '+D.status+' wajib menyertakan bukti (tautan atau nama dokumen).');return e}
+function review(){$('#rv').innerHTML=`<h3>Periksa sebelum mengirim</h3>${[['Program',D.name],['Penanggung jawab',D.pic],['Status',D.status],['KPI',D.kpis.length+' indikator'],['Waktu / Kualitas / Admin',D.time+' / '+D.qual+' / '+D.adm],['Dampak',D.impact],['Kepuasan',D.sat+' dari 5'],['Penerima manfaat',D.benef||0]].map(([a,b])=>`<p><span>${a}</span><b>${E(b)}</b></p>`).join('')}`}
+$('#bk').onclick=()=>{grab();if(ST==0){if(confirm('Keluar dari formulir? Draf tetap tersimpan.'))home()}else{ST--;draw()}};
+$('#nx').onclick=async()=>{grab();const e=check(ST);if(e.length)return $('#er').innerHTML=e.map(x=>'• '+E(x)).join('<br>');
+  if(ST<4){ST++;return draw()}
+  const b=$('#nx');b.disabled=true;b.textContent='Mengirim…';
+  const r=await AUDIT.api('kirim',{mid:MID,tk:TKN,sid:SID,data:Object.assign({},D,{kpis:D.kpis.map(k=>({n:k.n,u:k.u,t:+k.t,r:+k.r,w:+k.w}))})});b.disabled=false;
+  if(!r.ok){b.textContent='Kirim isian';return $('#er').textContent=r.error=='jaringan'?'Koneksi gagal. Isian belum terkirim, coba lagi.':r.error=='terkunci'?'Isian ini sudah disahkan dan tidak bisa diubah.':'Isian ditolak server ('+r.error+'). Periksa data lalu coba lagi.'}
+  if(!LIST.some(x=>x.sid==r.sid))LIST.unshift({sid:r.sid,name:D.name});try{localStorage.setItem(SK+'_l',JSON.stringify(LIST));if(!SID)localStorage.removeItem(SK+'_d')}catch(e){}
+  $('#bar').hidden=true;ST=5;rail();$('#sb2').textContent='';$('#m').innerHTML=`<div class="cd" style="text-align:center"><div class="ring">✓</div><h2>Isian terkirim</h2><p>Terima kasih. Admin akan memeriksa isian <b>${E(D.name)}</b>. Buka kembali barcode ini untuk melihat status audit atau catatan revisi.</p><button class="bt p" onclick="home()">Kembali ke beranda</button></div>`};
+init();
+</script></body></html>
