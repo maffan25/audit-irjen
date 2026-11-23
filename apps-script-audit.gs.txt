@@ -2,7 +2,7 @@
  * Audit Kinerja Kabinet Samasta: penerima isian kementerian dan penyimpan hasil audit.
  * Tempel seluruh kode ini di Google Sheets BARU: Ekstensi > Apps Script. Panduan: PANDUAN-AUDIT.txt
  */
-var KODE_AKSES = '';     // WAJIB DIISI: kode rahasia admin, minimal 6 karakter. Sama dengan kode yang diketik di halaman admin.
+var KODE_AKSES = '020503';     // WAJIB DIISI: kode rahasia admin, minimal 6 karakter. Sama dengan kode yang diketik di halaman admin.
 var SHEET_ID = '';       // OPSIONAL. Isi ID Spreadsheet bila skrip dibuat terpisah dari Sheet.
 var MAX_DATA = 20000;    // batas ukuran satu isian (karakter)
 
