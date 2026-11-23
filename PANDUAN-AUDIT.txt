@@ -25,36 +25,44 @@ ALUR
 Isian yang belum dinilai Irjen ditandai "Belum dinilai" dan TIDAK ikut dalam rata-rata nilai dashboard dan ranking.
 Capaian KPI tetap dihitung otomatis dari target dan realisasi.
 
-MENYAMBUNGKAN KE GOOGLE SHEETS (sekali saja)
-1. Buat Google Sheet BARU khusus audit.
-2. Ekstensi > Apps Script. Tempel isi apps-script-audit.gs.txt.
-3. Isi KODE_AKSES (minimal 6 karakter). Ini kode yang diketik admin di halaman masuk.
-4. Jalankan fungsi "setup" sekali (beri izin).
-5. Terapkan > Deployment baru > Aplikasi web. Jalankan sebagai: Saya. Akses: Siapa saja.
-6. Salin URL berakhiran /exec ke config.js (AUDIT_ENDPOINT).
-   Tes: buka URL itu di browser, harus muncul "ok":true, "sheet":"terhubung", "kode":"sudah diatur".
-7. Bila kode skrip diubah, buat Deployment BARU lalu perbarui URL.
+MENYAMBUNGKAN SERVER: PILIH SALAH SATU
 
-DEPLOY (GitHub + Vercel, seperti web Samasta lainnya)
+OPSI A: SUPABASE (disarankan, bisa 100% dari HP, tanpa PC)
+1. Buka supabase.com, masuk, buat project baru (atau pakai project yang sudah ada; tabelnya terpisah).
+2. Menu SQL Editor > New query. Tempel isi supabase-audit.sql.
+3. SEBELUM Run: ganti tulisan GANTI-KODE-INI dengan kode rahasia admin (minimal 6 karakter). Lalu Run.
+   Muncul "Success. No rows returned" = berhasil.
+4. Project Settings > API (atau tombol Connect): salin "Project URL" dan kunci "anon" atau "publishable".
+   JANGAN pakai kunci service_role / secret.
+5. Edit config.js di GitHub (lewat HP juga bisa): isi AUDIT_SUPABASE_URL dan AUDIT_SUPABASE_KEY. Commit. Vercel otomatis deploy.
+6. Buka web admin, masuk dengan kode dari langkah 3, buka menu Barcode: kartu harus bertanda "Terverifikasi di server".
+Data isian bisa dilihat di Supabase > Table Editor > isian, dan bisa diekspor CSV.
+
+OPSI B: GOOGLE SHEETS + APPS SCRIPT (perlu mode "Situs desktop" di browser HP)
+1. Buka Google Sheet, di Chrome HP aktifkan "Situs desktop", lalu Ekstensi > Apps Script.
+2. Tempel isi apps-script-audit.gs.txt, isi KODE_AKSES, jalankan fungsi "setup" sekali.
+3. Terapkan > Deployment baru > Aplikasi web. Jalankan sebagai: Saya. Akses: Siapa saja.
+4. Salin URL berakhiran /exec ke config.js (AUDIT_ENDPOINT).
+   Tes: buka URL itu di browser, harus muncul "ok":true, "sheet":"terhubung".
+5. Bila kode skrip diubah, buat Deployment BARU lalu perbarui URL.
+
+DEPLOY (GitHub + Vercel)
 1. Unggah seluruh isi folder ke repositori GitHub, hubungkan ke Vercel.
 2. Isi AUDIT_BASE di config.js dengan alamat situs, misalnya https://audit-samasta.vercel.app
-3. Buka index.html, masuk dengan KODE_AKSES, lalu buka menu Barcode (daftar kementerian otomatis dikirim ke server).
-   Tiap kartu menampilkan status "Terverifikasi di server ✓" bila barcode benar-benar bisa dipakai. Tombol "Periksa koneksi" mengulang pengecekan.
+3. Buka index.html, masuk dengan kode admin, lalu buka menu Barcode (daftar kementerian otomatis dikirim ke server).
 4. Bila nama kementerian diubah atau barcode diganti, buka menu Barcode agar server diperbarui.
 
 MODE UJI (tanpa server)
-Selama AUDIT_ENDPOINT kosong, semua data hanya di peramban ini dan kode akses admin memakai kode lama dari web audit kamu.
-Setelah AUDIT_ENDPOINT terisi, kode akses diperiksa server (KODE_AKSES di Apps Script).
+Selama belum ada sambungan server, semua data hanya di peramban ini dan kode akses admin memakai kode lama dari web audit kamu.
+Setelah server tersambung, kode akses diperiksa server.
 
 KEAMANAN
-- Situs ini statis. Barcode berisi token acak per kementerian; tanpa token, server menolak isian.
-  Bila barcode bocor, klik "Ganti barcode" (tautan lama langsung mati).
-- Data admin tersimpan di peramban admin (backup lewat menu Laporan). Isian kementerian tersimpan di Google Sheet.
-- Server membaca isian dan menyimpan audit hanya dengan KODE_AKSES (10 kali salah = ditahan 10 menit).
-- Gunakan Sheet khusus dan jangan bagikan aksesnya.
+- Barcode berisi token acak per kementerian; tanpa token, server menolak isian. Bila barcode bocor, klik "Ganti barcode".
+- Data admin tersimpan di peramban admin (backup lewat menu Laporan). Isian kementerian tersimpan di server.
+- Server membaca isian dan menyimpan audit hanya dengan kode akses (10 kali salah = ditahan 10 menit).
+- Kunci anon/publishable Supabase memang publik. Tabel dikunci (RLS), hanya fungsi di SQL yang bisa dipakai.
 
 BARCODE TIDAK BISA DIBUKA?
-- "Server audit belum tersambung": AUDIT_ENDPOINT di config.js masih kosong. Barcode baru berfungsi dari HP lain setelah terisi.
+- "Server audit belum tersambung": config.js belum berisi sambungan server.
 - "Barcode tidak berlaku": buka menu Barcode di web admin (daftar kementerian dikirim ke server), pastikan kartu bertanda ✓.
 - Alamat barcode berawalan localhost/192.168: isi AUDIT_BASE dengan alamat situs yang sudah di-deploy, lalu cetak ulang.
-- Setelah mengubah kode Apps Script, buat Deployment BARU dan perbarui AUDIT_ENDPOINT.

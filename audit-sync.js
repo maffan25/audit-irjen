@@ -14,7 +14,7 @@ login=async function(){const v=$('#code').value.trim();window.ADM=v;
   if(AUDIT.uji())return _login();
   const r=await AUDIT.api('masuk',{kode:v});
   if(r.ok){AU=1;try{sessionStorage.setItem('au','1');sessionStorage.setItem('ak',v)}catch(e){}lg('Login admin');location.hash='dash';boot();autoPull()}
-  else $('#er').textContent=r.error=='tunggu'?'Terlalu banyak percobaan salah. Tunggu 10 menit.':r.error=='jaringan'?'Server tidak terjangkau. Periksa AUDIT_ENDPOINT di config.js dan koneksi internet.':'Kode akses salah. Periksa kembali lalu coba lagi.'};
+  else $('#er').textContent=r.error=='tunggu'?'Terlalu banyak percobaan salah. Tunggu 10 menit.':r.error=='jaringan'?'Server tidak terjangkau. Periksa sambungan server di config.js dan koneksi internet.':'Kode akses salah. Periksa kembali lalu coba lagi.'};
 
 /* ---- sinkronisasi ---- */
 async function pushM(q){const r=await AUDIT.api('sinkron',{kode:kode(),daftar:S.m.map(m=>({id:m.id,name:m.name,head:m.head,tk:(lnk(m),m.tk),periode:S.cfg.periode||''}))});
@@ -64,7 +64,7 @@ const _d=PG.dash;PG.dash=function(){const n=waiting();return(n?`<div class="wn" 
 PG.box=function(){const ps=S.p.filter(p=>p.src=='kementerian'),o={menunggu:0,revisi:1,sah:2};ps.sort((a,b)=>(o[a.aud]??0)-(o[b.aud]??0));
   const cnt=s=>ps.filter(p=>p.aud==s).length;
   return`<div class="hd"><div><h1>Kotak Masuk</h1><p>Isian yang dikirim kementerian lewat barcode. Buka satu isian untuk memeriksa dan memberi nilai audit.</p></div><button class="bt p" onclick="syncNow()">Tarik isian terbaru</button></div>
-${AUDIT.uji()?'<div class="wn">Mode uji: server belum tersambung. Isian hanya terbaca dari peramban ini. Isi AUDIT_ENDPOINT di config.js (lihat PANDUAN-AUDIT.txt).</div>':''}
+${AUDIT.uji()?'<div class="wn">Mode uji: server belum tersambung. Isian hanya terbaca dari peramban ini. Isi sambungan server di config.js (Supabase atau Apps Script, lihat PANDUAN-AUDIT.txt).</div>':''}
 <div class="gr gs" style="margin-bottom:16px">${card(cnt('menunggu'),'Menunggu audit',1)}${card(cnt('revisi'),'Perlu revisi')}${card(cnt('sah'),'Disahkan')}${card(ps.length,'Total isian')}</div>
 ${ps.length?`<div class="cd ov"><table><tr><th>Program kerja</th><th>Kementerian</th><th>Penanggung jawab</th><th>Status</th><th>Capaian KPI</th><th>Status audit</th><th>Nilai Irjen</th></tr>${ps.map(p=>{const q=sc(p),s=q.fin;return`<tr class="cl" onclick="go('prk/${p.id}')"><td><b>${E(p.name)}</b></td><td>${E(mn(p.mid))}</td><td>${E(p.pic)}</td><td>${E(p.status)}</td><td>${N(q.kpi)}%</td><td>${ab(p.aud)}</td><td>${p.unscored?'<span class="pill">Belum dinilai</span>':N(s)+' '+bd(s)}</td></tr>`}).join('')}</table></div>`:empty('<h3>Belum ada isian</h3><p>Bagikan barcode tiap kementerian dari menu Barcode. Isian yang masuk akan muncul di sini.</p><p><button class="bt p" onclick="go(\'qr\')">Buka Barcode</button></p>')}`};
 
@@ -86,7 +86,7 @@ async function verif(){const ok=await pushM(1);for(const m of S.m){const e=docum
 window.qrVerif=verif;
 PG.qr=function(){setTimeout(verif,50);const lh=/^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname)||location.protocol=='file:';
   return`<div class="hd"><div><h1>Barcode Kementerian</h1><p>Setiap kementerian punya barcode sendiri. Isian yang dikirim langsung masuk ke Kotak Masuk untuk diaudit.</p></div><div class="fb"><button class="bt" onclick="qrVerif()">Periksa koneksi</button><button class="bt d" onclick="qrPrint()">Cetak semua barcode</button></div></div>
-${lh?'<div class="wn x">Alamat situs masih alamat lokal ('+E(location.host||'file')+'). Barcode tidak bisa dibuka dari HP kementerian. Setelah di-deploy, isi AUDIT_BASE di config.js dengan alamat situs.</div>':''}${AUDIT.uji()?'<div class="wn">Mode uji: server belum tersambung. Isian hanya tersimpan di peramban ini. Isi AUDIT_ENDPOINT di config.js agar kementerian bisa mengirim dari perangkat mereka.</div>':''}
+${lh?'<div class="wn x">Alamat situs masih alamat lokal ('+E(location.host||'file')+'). Barcode tidak bisa dibuka dari HP kementerian. Setelah di-deploy, isi AUDIT_BASE di config.js dengan alamat situs.</div>':''}${AUDIT.uji()?'<div class="wn">Mode uji: server belum tersambung. Isian hanya tersimpan di peramban ini. Isi sambungan server di config.js (Supabase atau Apps Script) agar kementerian bisa mengirim dari perangkat mereka.</div>':''}
 ${S.m.length?`<div class="gr">${S.m.map(m=>`<div class="cd qrc"><div class="arc"><h3 style="margin:0">${E(m.name)}</h3><p style="color:var(--gd);font-weight:600;margin:0">${E(m.head)}</p></div><div class="qq">${qsvg(lnk(m))}</div><span class="pill" id="vs_${m.id}">Memeriksa…</span><code>${E(lnk(m))}</code><div class="fb" style="justify-content:center;margin:0"><button class="bt s p" onclick="qrDl('${m.id}')">Unduh poster</button><button class="bt s" onclick="qrCopy('${m.id}')">Salin tautan</button><button class="bt s r" onclick="qrReset('${m.id}')">Ganti barcode</button></div></div>`).join('')}</div>`:empty('<h3>Belum ada kementerian</h3><p>Tambahkan kementerian dulu, barcode dibuat otomatis.</p><p><button class="bt p" onclick="go(\'min\')">Tambah kementerian</button></p>')}`};
 
 boot();if(AU)autoPull();

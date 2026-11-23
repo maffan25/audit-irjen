@@ -2,6 +2,13 @@
    Tanpa AUDIT_ENDPOINT, berjalan dalam "mode uji": data disimpan di peramban ini saja. */
 (function(w){
 var TK='audit_test_db',EP=function(){return (w.AUDIT_ENDPOINT||'').trim()};
+var SB=function(){return (w.AUDIT_SUPABASE_URL||'').trim().replace(/\/+$/,'')},KY=function(){return (w.AUDIT_SUPABASE_KEY||'').trim()};
+var FN={masuk:'a_masuk',sinkron:'a_sinkron',ambil:'a_ambil',audit:'a_audit',info:'k_info',status:'k_status',kirim:'k_kirim'};
+function supa(a,d){var b={};Object.keys(d).forEach(function(k){b['p_'+k]=d[k]});
+  var h={'Content-Type':'application/json',apikey:KY()};if(/^eyJ/.test(KY()))h.Authorization='Bearer '+KY();
+  return fetch(SB()+'/rest/v1/rpc/'+FN[a],{method:'POST',headers:h,body:JSON.stringify(b)})
+    .then(function(r){return r.json()}).then(function(j){return j&&typeof j==='object'&&'ok' in j?j:{ok:false,error:'server'}})
+    .catch(function(){return{ok:false,error:'jaringan'}})}
 function db(){try{return JSON.parse(localStorage.getItem(TK))||{m:{},r:{}}}catch(e){return{m:{},r:{}}}}
 function put(d){localStorage.setItem(TK,JSON.stringify(d))}
 function rid(){return 'S'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -20,8 +27,9 @@ function lokal(a,d){
     put(D);return{ok:true,sid:d.sid}}
   return{ok:false,error:'aksi'}}
 w.AUDIT={
-  uji:function(){return !EP()},
+  uji:function(){return !EP()&&!(SB()&&KY())},
   api:function(a,d){d=d||{};
+    if(SB()&&KY())return supa(a,d);
     if(!EP())return Promise.resolve(lokal(a,d));
     var o=Object.assign({aksi:a},d);
     return fetch(EP(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(o)})

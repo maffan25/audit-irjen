@@ -4,5 +4,12 @@
                     Barcode akan memakai alamat ini. Kosong = memakai alamat halaman yang sedang dibuka.
    Kode akses admin: selama AUDIT_ENDPOINT kosong, memakai kode lama dari web audit kamu; bila terisi, diperiksa server (KODE_AKSES di Apps Script).
    Sunting dengan editor teks biasa, bukan Word/WPS. */
+/* ---- PILIH SATU backend ----
+   A) Supabase (disarankan bila hanya memakai HP; lihat PANDUAN-AUDIT.txt, jalankan supabase-audit.sql):
+      AUDIT_SUPABASE_URL : Project URL, contoh "https://abcdxyz.supabase.co"
+      AUDIT_SUPABASE_KEY : kunci publik "anon" atau "publishable" (bukan service_role / secret!)
+   B) Google Apps Script: isi AUDIT_ENDPOINT saja. */
+window.AUDIT_SUPABASE_URL = "";
+window.AUDIT_SUPABASE_KEY = "";
 window.AUDIT_ENDPOINT = "";
 window.AUDIT_BASE = "";

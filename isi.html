@@ -51,7 +51,7 @@ function swap(){const m=$('#m');m.classList.remove('swap');void m.offsetWidth;m.
 async function init(){
   if(!MID||!TKN)return fail('Tautan tidak lengkap','Pindai ulang barcode dari kementerianmu, atau minta tautan baru kepada admin.');
   const r=await AUDIT.api('info',{mid:MID,tk:TKN});
-  if(!r.ok){if(AUDIT.uji())return fail('Server audit belum tersambung','Admin perlu mengisi AUDIT_ENDPOINT di config.js agar barcode bisa dipakai dari perangkat lain.');return fail(r.error=='jaringan'?'Server tidak terjangkau':'Barcode tidak berlaku',r.error=='jaringan'?'Periksa koneksi internet lalu muat ulang halaman.':r.error=='tunggu'?'Terlalu banyak percobaan. Coba lagi beberapa menit lagi.':'Barcode ini sudah diganti, atau admin belum membuka menu Barcode setelah menambah kementerian. Hubungi admin.')}
+  if(!r.ok){if(AUDIT.uji())return fail('Server audit belum tersambung','Admin perlu mengisi sambungan server di config.js agar barcode bisa dipakai dari perangkat lain.');return fail(r.error=='jaringan'?'Server tidak terjangkau':'Barcode tidak berlaku',r.error=='jaringan'?'Periksa koneksi internet lalu muat ulang halaman.':r.error=='tunggu'?'Terlalu banyak percobaan. Coba lagi beberapa menit lagi.':'Barcode ini sudah diganti, atau admin belum membuka menu Barcode setelah menambah kementerian. Hubungi admin.')}
   INFO=r;$('#jd').textContent=r.nama;home()}
 function fail(t,s){$('#jd').textContent=t;$('#sb2').textContent=s;$('#m').innerHTML='';$('#bar').hidden=true}
 function rail(){$('#rail').innerHTML=STEPS.map((_,i)=>`<i class="${i<=ST?'d':''}"></i>`).join('');$('#stl').textContent=ST>=0&&ST<STEPS.length?'Langkah '+(ST+1)+' dari '+STEPS.length+' · '+STEPS[ST]:''}
