@@ -4,5 +4,5 @@
                     Barcode akan memakai alamat ini. Kosong = memakai alamat halaman yang sedang dibuka.
    Kode akses admin: selama AUDIT_ENDPOINT kosong, memakai kode lama dari web audit kamu; bila terisi, diperiksa server (KODE_AKSES di Apps Script).
    Sunting dengan editor teks biasa, bukan Word/WPS. */
-window.AUDIT_ENDPOINT = "https://script.google.com/macros/s/AKfycbwHb9BXqo-m4AbTwfDMeuYHwMGHTSe82veSkd76j7908ZK_btE_wjeTz5QspljOBKR3Qw/exec";
-window.AUDIT_BASE = "https://audit-irjen.vercel.app";
+window.AUDIT_ENDPOINT = "";
+window.AUDIT_BASE = "";

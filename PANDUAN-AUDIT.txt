@@ -13,15 +13,17 @@ ISI FOLDER
 - apps-script-audit.gs.txt : kode backend Google Sheets
 
 ALUR
-1. Admin menambah kementerian di menu Kementerian. Barcode tiap kementerian dibuat otomatis (menu Barcode).
+1. Admin (Irjen) menambah kementerian di menu Kementerian. Barcode tiap kementerian dibuat otomatis (menu Barcode).
 2. Admin mencetak atau mengunduh poster barcode, lalu membagikannya ke tiap kementerian.
-3. Kementerian memindai barcode, mengisi program kerja (5 langkah), dan mengirim.
-4. Isian masuk ke Kotak Masuk admin. Admin membuka isian, membandingkan "klaim kementerian" dengan bukti,
-   mengisi nilai audit, lalu: Simpan nilai / Minta revisi (dengan catatan) / Sahkan.
-5. Kementerian membuka barcode yang sama untuk melihat status dan catatan. Bila diminta revisi, mereka
-   memperbaiki dan mengirim ulang. Isian yang sudah disahkan terkunci.
-Nilai akhir memakai NILAI AUDIT. Selama belum diaudit, nilai sementara memakai klaim kementerian
-(ditandai "Menunggu audit").
+3. Kementerian memindai barcode dan HANYA mengisi informasi (4 langkah): data program, tujuan (OKR) dan KPI
+   (target dan realisasi), hasil, serta bukti. Tidak ada kolom penilaian untuk kementerian.
+4. Isian masuk otomatis ke Kotak Masuk admin. OKR, KPI, capaian KPI, dan bukti langsung tampil.
+5. Irjen membuka isian, memeriksa bukti, lalu mengisi nilai (waktu, kualitas, administrasi, dampak, kepuasan,
+   keterkaitan OKR) dan memilih: Simpan nilai / Minta revisi (dengan catatan) / Sahkan.
+6. Kementerian membuka barcode yang sama untuk melihat status dan catatan Irjen. Bila diminta revisi, mereka
+   memperbaiki dan mengirim ulang (nilai Irjen sebelumnya tetap tersimpan). Isian yang sudah disahkan terkunci.
+Isian yang belum dinilai Irjen ditandai "Belum dinilai" dan TIDAK ikut dalam rata-rata nilai dashboard dan ranking.
+Capaian KPI tetap dihitung otomatis dari target dan realisasi.
 
 MENYAMBUNGKAN KE GOOGLE SHEETS (sekali saja)
 1. Buat Google Sheet BARU khusus audit.

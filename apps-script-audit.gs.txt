@@ -91,8 +91,6 @@ function kirim_(d) {
   if (!Array.isArray(x.kpis) || !x.kpis.length || x.kpis.length > 20) return { ok: false, error: 'kpi' };
   var tw = 0; x.kpis.forEach(function (k) { tw += Number(k.w) || 0; });
   if (tw !== 100) return { ok: false, error: 'bobot' };
-  ['time', 'qual', 'adm', 'impact', 'okr'].forEach(function (f) { x[f] = Math.min(100, Math.max(0, Number(x[f]) || 0)); });
-  x.sat = Math.min(5, Math.max(0, Number(x.sat) || 0));
   var sh = ss_().getSheetByName('Isian'), now = Date.now(), json = JSON.stringify(x);
   if (d.sid) {           // perbaikan: hanya boleh bila belum disahkan dan milik kementerian yang sama
     if (sh.getLastRow() > 1) {

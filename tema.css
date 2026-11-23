@@ -60,3 +60,18 @@ body>*:not(#rpt){display:none!important}#rpt{display:block;color:#111;background
 .app>div,main{min-width:0}body{overflow-x:clip}.hd h1{overflow-wrap:anywhere}
 @media(max-width:820px){.tb input{max-width:none;min-width:0}.fb select{flex:1 1 calc(50% - 8px);min-width:0}.hd>img{width:56px}.hd div{min-width:0;flex:1 1 180px}main{padding:18px 14px 40px}.qrc .qq{width:min(100%,240px)}}
 .qrc .arc{width:100%}.qrc .qq,.qrc code{max-width:100%}
+
+/* gerak: animasi tekan, riak, dan masuk halaman */
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.07)}100%{transform:scale(1);opacity:1}}
+@keyframes rpl{to{transform:scale(1);opacity:0}}
+.bt,.tabs button,.steps button,.stk button,#sb a,.gb{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;transition:transform .28s cubic-bezier(.34,1.56,.64,1),background .2s,box-shadow .2s,border-color .2s,filter .2s}
+.bt:active,.tabs button:active,.steps button:active,.stk button:active,.gb:active{transform:scale(.93)}#sb a:active{transform:scale(.96)}
+.bt.p:active{filter:brightness(.96);box-shadow:0 1px 4px -2px rgba(248,210,74,.9)}tr.cl:active{background:var(--sand)}
+.rpl{position:absolute;border-radius:50%;background:rgba(13,42,56,.2);transform:scale(0);animation:rpl .6s ease-out forwards;pointer-events:none}.bt.p .rpl,.bt.d .rpl{background:rgba(255,255,255,.45)}#sb a .rpl{background:rgba(248,210,74,.35)}
+input:focus,select:focus,textarea:focus{box-shadow:0 0 0 4px rgba(248,210,74,.35)}
+.cd{transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s}.gr>.cd:hover,.gs>.cd:hover{transform:translateY(-3px);box-shadow:0 16px 30px -14px rgba(13,42,56,.35)}
+main>*{animation:rise .5s cubic-bezier(.2,.7,.2,1) backwards}main>*:nth-child(2){animation-delay:.05s}main>*:nth-child(3){animation-delay:.1s}main>*:nth-child(4){animation-delay:.15s}main>*:nth-child(n+5){animation-delay:.2s}
+.gs>.cd{animation:pop .5s backwards}.gs>.cd:nth-child(2){animation-delay:.05s}.gs>.cd:nth-child(3){animation-delay:.1s}.gs>.cd:nth-child(4){animation-delay:.15s}.gs>.cd:nth-child(5){animation-delay:.2s}.gs>.cd:nth-child(n+6){animation-delay:.25s}
+.tk i{animation:grow .8s cubic-bezier(.2,.8,.2,1) backwards}@keyframes grow{from{width:0!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

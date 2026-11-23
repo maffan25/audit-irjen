@@ -20,10 +20,9 @@ login=async function(){const v=$('#code').value.trim();window.ADM=v;
 async function pushM(q){const r=await AUDIT.api('sinkron',{kode:kode(),daftar:S.m.map(m=>({id:m.id,name:m.name,head:m.head,tk:(lnk(m),m.tk),periode:S.cfg.periode||''}))});
   if(!q)toast(r.ok?'Daftar kementerian terkirim ke server':'Gagal mengirim daftar ('+(r.error||'?')+')');return r.ok}
 function merge(r){const d=r.data||{};let p=S.p.find(x=>x.sid==r.sid);if(!S.m.some(m=>m.id==r.mid))return 0;
-  const cl={time:+d.time||0,qual:+d.qual||0,adm:+d.adm||0,impact:+d.impact||0,sat:+d.sat||0,okr:+d.okr||0};
   const b={name:d.name||'(tanpa nama)',mid:r.mid,pic:d.pic||'',date:d.date||'',status:d.status||'Belum dimulai',type:d.type||'',period:d.period||'',budget:+d.budget||0,obj:d.obj||'',kr:d.kr||'',kpis:Array.isArray(d.kpis)?d.kpis:[],benef:+d.benef||0,outcome:d.outcome||'',evidence:d.evidence||''};
-  if(!p){S.p.push(Object.assign({id:uid(),sid:r.sid,src:'kementerian',weight:3,note:'',ver:r.ver,aud:r.aud||'menunggu',claim:cl},b,cl));lg('Isian baru dari '+mn(r.mid)+': '+b.name);return 1}
-  if(r.ver>(p.ver||0)){Object.assign(p,b,cl,{ver:r.ver,aud:'menunggu',claim:cl});lg('Isian diperbarui oleh '+mn(r.mid)+': '+b.name);return 1}
+  if(!p){S.p.push(Object.assign({id:uid(),sid:r.sid,src:'kementerian',weight:3,note:'',ver:r.ver,aud:r.aud||'menunggu',unscored:true,time:0,qual:0,adm:0,impact:0,sat:0,okr:0},b));lg('Isian baru dari '+mn(r.mid)+': '+b.name);return 1}
+  if(r.ver>(p.ver||0)){Object.assign(p,b,{ver:r.ver,aud:'menunggu'});lg('Isian diperbarui oleh '+mn(r.mid)+': '+b.name);return 1}
   return 0}
 async function pull(q){const r=await AUDIT.api('ambil',{kode:kode()});
   if(!r.ok){if(!q)toast('Gagal menarik isian ('+(r.error||'?')+')');return 0}
@@ -38,10 +37,11 @@ NAV.splice(2,0,['box','Kotak Masuk'],['qr','Barcode']);
 const _R=R;R=function(k){_R(k);const a=document.querySelector('#nv a[data-p=box]'),n=waiting();if(a){const o=a.querySelector('em');if(o)o.remove();if(n)a.insertAdjacentHTML('beforeend','<em>'+n+'</em>')}};
 
 /* ---- panel audit pada halaman proker ---- */
-const DK=[['time','Ketepatan waktu',100],['qual','Kualitas pelaksanaan',100],['adm','Kepatuhan administrasi',100],['impact','Dampak (impact)',100],['sat','Kepuasan peserta (1–5)',5],['okr','Keterkaitan OKR',100]];
-function audPanel(p){const c=p.claim||{},ro=p.aud=='sah';
-  return`<div class="cd" style="margin-bottom:14px"><div class="hd"><div><h2>Audit isian kementerian</h2><p>Nilai klaim berasal dari kementerian. Isi nilai audit sesuai bukti; nilai audit yang dipakai pada penilaian akhir.</p></div>${ab(p.aud)}</div>
-<div class="ov"><table><tr><th>Indikator</th><th>Klaim kementerian</th><th>Nilai audit</th><th>Selisih</th></tr>${DK.map(([k,l,mx])=>{const d=(+p[k]||0)-(+c[k]||0),big=Math.abs(d)>(mx==5?.75:15);return`<tr><td>${l}</td><td>${N(c[k],mx==5?1:0)}</td><td><input id="au_${k}" type="number" min="0" max="${mx}" step="${mx==5?.1:1}" value="${p[k]??0}" style="width:96px;min-height:38px" ${ro?'disabled':''}></td><td style="color:${big?'var(--c4)':'var(--mu)'};font-weight:${big?700:400}">${d>0?'+':''}${N(d,mx==5?1:0)}${big?' ⚠':''}</td></tr>`}).join('')}</table></div>
+const DK=[['time','Ketepatan waktu',100,'Pelaksanaan sesuai jadwal rencana'],['qual','Kualitas pelaksanaan',100,'Sesuai standar dan rencana kegiatan'],['adm','Kepatuhan administrasi',100,'Proposal, LPJ, dan dokumentasi lengkap'],['impact','Dampak (impact)',100,'Perubahan nyata bagi penerima manfaat'],['sat','Kepuasan peserta (1–5)',5,'Dari survei atau bukti kepuasan'],['okr','Keterkaitan OKR',100,'Selaras dengan tujuan strategis kabinet']];
+function audPanel(p){const ro=p.aud=='sah',un=p.unscored;
+  return`<div class="cd" style="margin-bottom:14px"><div class="hd"><div><h2>Penilaian Inspektorat Jenderal</h2><p>Kementerian hanya mengisi informasi. OKR, KPI, dan bukti di atas masuk otomatis; nilai di bawah diisi oleh Irjen.</p></div>${ab(p.aud)}</div>
+${un?'<div class="wn">Belum dinilai. Nilai akhir di atas belum final karena komponen penilaian masih kosong.</div>':''}
+<div class="ov"><table><tr><th>Indikator</th><th>Nilai Irjen</th><th>Panduan</th></tr>${DK.map(([k,l,mx,h])=>`<tr><td>${l}</td><td><input id="au_${k}" type="number" min="0" max="${mx}" step="${mx==5?.1:1}" value="${un?'':(p[k]??'')}" placeholder="0–${mx}" style="width:96px;min-height:38px" ${ro?'disabled':''}></td><td style="color:var(--mu);white-space:normal">${h}</td></tr>`).join('')}</table></div>
 <label class="fl"><span>Bobot proker (1–5)</span><input id="au_weight" type="number" min="1" max="5" value="${p.weight||3}" style="max-width:120px" ${ro?'disabled':''}></label>
 <label class="fl"><span>Catatan audit untuk kementerian</span><textarea id="au_note" ${ro?'disabled':''}>${E(p.note)}</textarea><small>Catatan ini terlihat oleh kementerian di halaman statusnya.</small></label><div class="er" id="au_e"></div>
 <div class="fb">${ro?`<button class="bt" onclick="audAct('${p.id}','menunggu')">Buka kembali audit</button>`:`<button class="bt" onclick="audAct('${p.id}','menunggu')">Simpan nilai</button><button class="bt r" onclick="audAct('${p.id}','revisi')">Minta revisi</button><button class="bt p" onclick="audAct('${p.id}','sah')">Sahkan</button>`}</div></div>`}
@@ -52,9 +52,11 @@ window.audAct=async(id,st)=>{const p=S.p.find(x=>x.id==id),e=$('#au_e'),v={};
   const w=+$('#au_weight').value,note=$('#au_note').value.trim();if(!(w>=1&&w<=5))return e.textContent='Bobot proker harus 1–5.';
   if(st=='revisi'&&!note)return e.textContent='Tulis catatan agar kementerian tahu apa yang perlu direvisi.';
   if(st=='sah'&&['Selesai','Berjalan'].includes(p.status)&&!p.evidence&&!await ask('Proker ini belum memiliki bukti. Tetap disahkan?'))return;
-  Object.assign(p,v,{weight:w,note,aud:st});lg((st=='sah'?'Mengesahkan ':st=='revisi'?'Meminta revisi ':'Menyimpan audit ')+p.name+' ('+mn(p.mid)+')');save();pushA(p);toast(st=='sah'?'Disahkan':st=='revisi'?'Permintaan revisi dikirim':'Nilai audit disimpan');R(1)};
+  Object.assign(p,v,{weight:w,note,aud:st,unscored:false});lg((st=='sah'?'Mengesahkan ':st=='revisi'?'Meminta revisi ':'Menyimpan audit ')+p.name+' ('+mn(p.mid)+')');save();pushA(p);toast(st=='sah'?'Disahkan':st=='revisi'?'Permintaan revisi dikirim':'Nilai audit disimpan');R(1)};
 const _pp=prkPage;prkPage=function(id){const p=S.p.find(x=>x.id==id);return _pp(id)+(p&&p.src=='kementerian'?audPanel(p):'')};
 
+/* ---- rata-rata skor hanya dari proker yang sudah dinilai Irjen ---- */
+const _agg=agg;agg=function(ps){const o=_agg(ps),v=ps.filter(p=>!p.unscored);if(v.length==ps.length)return o;const w=v.length?_agg(v):null;KEYS.forEach(k=>o[k]=w?w[k]:0);return o};
 /* ---- dashboard: pengingat isian baru ---- */
 const _d=PG.dash;PG.dash=function(){const n=waiting();return(n?`<div class="wn" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px"><b>${n} isian kementerian</b> menunggu audit.</span><button class="bt s p" onclick="go('box')">Buka Kotak Masuk</button></div>`:'')+_d.apply(this,arguments)};
 
@@ -64,7 +66,7 @@ PG.box=function(){const ps=S.p.filter(p=>p.src=='kementerian'),o={menunggu:0,rev
   return`<div class="hd"><div><h1>Kotak Masuk</h1><p>Isian yang dikirim kementerian lewat barcode. Buka satu isian untuk memeriksa dan memberi nilai audit.</p></div><button class="bt p" onclick="syncNow()">Tarik isian terbaru</button></div>
 ${AUDIT.uji()?'<div class="wn">Mode uji: server belum tersambung. Isian hanya terbaca dari peramban ini. Isi AUDIT_ENDPOINT di config.js (lihat PANDUAN-AUDIT.txt).</div>':''}
 <div class="gr gs" style="margin-bottom:16px">${card(cnt('menunggu'),'Menunggu audit',1)}${card(cnt('revisi'),'Perlu revisi')}${card(cnt('sah'),'Disahkan')}${card(ps.length,'Total isian')}</div>
-${ps.length?`<div class="cd ov"><table><tr><th>Program kerja</th><th>Kementerian</th><th>Penanggung jawab</th><th>Status audit</th><th>Nilai</th></tr>${ps.map(p=>{const s=sc(p).fin;return`<tr class="cl" onclick="go('prk/${p.id}')"><td><b>${E(p.name)}</b></td><td>${E(mn(p.mid))}</td><td>${E(p.pic)}</td><td>${ab(p.aud)}</td><td>${N(s)} ${bd(s)}</td></tr>`}).join('')}</table></div>`:empty('<h3>Belum ada isian</h3><p>Bagikan barcode tiap kementerian dari menu Barcode. Isian yang masuk akan muncul di sini.</p><p><button class="bt p" onclick="go(\'qr\')">Buka Barcode</button></p>')}`};
+${ps.length?`<div class="cd ov"><table><tr><th>Program kerja</th><th>Kementerian</th><th>Penanggung jawab</th><th>Status</th><th>Capaian KPI</th><th>Status audit</th><th>Nilai Irjen</th></tr>${ps.map(p=>{const q=sc(p),s=q.fin;return`<tr class="cl" onclick="go('prk/${p.id}')"><td><b>${E(p.name)}</b></td><td>${E(mn(p.mid))}</td><td>${E(p.pic)}</td><td>${E(p.status)}</td><td>${N(q.kpi)}%</td><td>${ab(p.aud)}</td><td>${p.unscored?'<span class="pill">Belum dinilai</span>':N(s)+' '+bd(s)}</td></tr>`}).join('')}</table></div>`:empty('<h3>Belum ada isian</h3><p>Bagikan barcode tiap kementerian dari menu Barcode. Isian yang masuk akan muncul di sini.</p><p><button class="bt p" onclick="go(\'qr\')">Buka Barcode</button></p>')}`};
 
 /* ---- Barcode ---- */
 const qsvg=(u,b)=>QR.svg(QR.make(u),{border:b??2,dark:'#0d2a38',light:'#ffffff'});
@@ -77,7 +79,7 @@ window.qrDl=id=>{const m=S.m.find(x=>x.id==id);poster(m,u=>{const a=document.cre
 window.qrCopy=async id=>{const m=S.m.find(x=>x.id==id);try{await navigator.clipboard.writeText(lnk(m));toast('Tautan disalin')}catch(e){prompt('Salin tautan ini:',lnk(m))}};
 window.qrReset=async id=>{const m=S.m.find(x=>x.id==id);if(!await ask(`Buat barcode baru untuk <b>${E(m.name)}</b>? Barcode dan tautan lama langsung tidak berlaku.`))return;m.tk=tok();lg('Mengganti barcode '+m.name);save();await pushM(1);R(1);toast('Barcode diganti. Bagikan yang baru.')};
 window.qrPrint=()=>{if(!S.m.length)return toast('Belum ada kementerian');$('#rpt').innerHTML=S.m.map(m=>`<section class="cv" style="padding-top:20mm"><img src="${LOGO}" alt=""><h1>${E(m.name)}</h1><h2>Penilaian Kinerja Program Kerja</h2><div style="width:90mm;margin:8mm auto">${qsvg(lnk(m),2)}</div><p>Pindai barcode, lalu isi data program kerja.</p><p style="color:#555;font-size:9pt">${E(AUDIT.base())}</p></section>`).join('');setTimeout(()=>print(),300)};
-async function verif(){const ok=AUDIT.uji()?0:await pushM(1);for(const m of S.m){const e=document.getElementById('vs_'+m.id);if(!e)continue;
+async function verif(){const ok=await pushM(1);for(const m of S.m){const e=document.getElementById('vs_'+m.id);if(!e)continue;
   if(AUDIT.uji()){e.textContent='Mode uji: hanya berlaku di perangkat ini';e.style.background='#fdeeb5';continue}
   if(!ok){e.textContent='Gagal terhubung ke server';e.style.background='#f6d3d0';continue}
   const r=await AUDIT.api('info',{mid:m.id,tk:m.tk});e.textContent=r.ok?'Terverifikasi di server ✓':'Ditolak server ('+(r.error||'?')+')';e.style.background=r.ok?'#cfe9df':'#f6d3d0'}}

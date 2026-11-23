@@ -29,3 +29,9 @@ w.AUDIT={
   base:function(){var b=(w.AUDIT_BASE||'').trim().replace(/\/+$/,'');return b||location.href.replace(/[#?].*$/,'').replace(/[^\/]*$/,'').replace(/\/+$/,'')}
 };
 })(window);
+
+/* efek tekan: riak + getar ringan di HP */
+document.addEventListener('pointerdown',function(e){var t=e.target.closest&&e.target.closest('.bt,.tabs button,.steps button,.stk button,#sb a,.gb');if(!t||t.disabled)return;
+ var r=t.getBoundingClientRect(),s=Math.max(r.width,r.height)*2,d=document.createElement('span');d.className='rpl';
+ d.style.cssText='width:'+s+'px;height:'+s+'px;left:'+(e.clientX-r.left-s/2)+'px;top:'+(e.clientY-r.top-s/2)+'px';t.appendChild(d);setTimeout(function(){d.remove()},650);
+ try{navigator.vibrate&&navigator.vibrate(8)}catch(x){}},{passive:true});
