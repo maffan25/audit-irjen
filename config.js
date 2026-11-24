@@ -3,6 +3,7 @@
    AUDIT_BASE     : alamat situs setelah di-deploy, tanpa garis miring akhir, contoh "https://audit-samasta.vercel.app".
                     Barcode akan memakai alamat ini. Kosong = memakai alamat halaman yang sedang dibuka.
    Kode akses admin: selama AUDIT_ENDPOINT kosong, memakai kode lama dari web audit kamu; bila terisi, diperiksa server (KODE_AKSES di Apps Script).
+   Barcode: SATU barcode per bulan untuk semua kementerian, dibuat dan disimpan di server lewat menu Barcode di web admin.
    Sunting dengan editor teks biasa, bukan Word/WPS. */
 /* ---- PILIH SATU backend ----
    A) Supabase (disarankan bila hanya memakai HP; lihat PANDUAN-AUDIT.txt, jalankan supabase-audit.sql):

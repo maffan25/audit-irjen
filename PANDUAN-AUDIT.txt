@@ -12,16 +12,24 @@ ISI FOLDER
 - logo.webp             : logo Kabinet Samasta
 - apps-script-audit.gs.txt : kode backend Google Sheets
 
-ALUR
-1. Admin (Irjen) menambah kementerian di menu Kementerian. Barcode tiap kementerian dibuat otomatis (menu Barcode).
-2. Admin mencetak atau mengunduh poster barcode, lalu membagikannya ke tiap kementerian.
-3. Kementerian memindai barcode dan HANYA mengisi informasi (4 langkah): data program, tujuan (OKR) dan KPI
-   (target dan realisasi), hasil, serta bukti. Tidak ada kolom penilaian untuk kementerian.
-4. Isian masuk otomatis ke Kotak Masuk admin. OKR, KPI, capaian KPI, dan bukti langsung tampil.
-5. Irjen membuka isian, memeriksa bukti, lalu mengisi nilai (waktu, kualitas, administrasi, dampak, kepuasan,
-   keterkaitan OKR) dan memilih: Simpan nilai / Minta revisi (dengan catatan) / Sahkan.
-6. Kementerian membuka barcode yang sama untuk melihat status dan catatan Irjen. Bila diminta revisi, mereka
-   memperbaiki dan mengirim ulang (nilai Irjen sebelumnya tetap tersimpan). Isian yang sudah disahkan terkunci.
+ALUR (BARCODE BULANAN: SATU BARCODE UNTUK SEMUA KEMENTERIAN)
+1. Admin (Irjen) menambah kementerian di menu Kementerian. Daftar otomatis dikirim ke server.
+2. Admin membuka menu Barcode, memilih bulan, lalu menekan "Aktifkan barcode". Muncul SATU barcode untuk bulan itu.
+   Unduh poster atau cetak, lalu bagikan ke semua kementerian (grup WhatsApp boleh: bagikan poster atau tautannya).
+3. Kementerian memindai barcode, MEMILIH nama kementeriannya, lalu mengisi informasi (4 langkah): data program,
+   tujuan (OKR) dan KPI (target dan realisasi), hasil, serta bukti. Tidak ada kolom penilaian untuk kementerian.
+4. SATU KALI PER BULAN: begitu sebuah kementerian dipilih, namanya hilang dari daftar semua orang lain. Pilihan ditahan 3 jam
+   untuk perangkat yang memilih; kalau tidak dikirim, otomatis dilepas. Setelah isian terkirim, kementerian itu tidak bisa
+   mengirim lagi dan tidak bisa dipilih siapa pun. Satu perangkat paling banyak menahan 3 kementerian sekaligus.
+5. Isian masuk otomatis ke Kotak Masuk admin. OKR, KPI, capaian KPI, dan bukti langsung tampil.
+6. Irjen membuka isian, memeriksa bukti, lalu mengisi nilai dan memilih: Simpan nilai / Minta revisi (dengan catatan) / Sahkan.
+7. Bila Irjen meminta revisi, kementerian itu MUNCUL KEMBALI di daftar pilihan (bertanda "Perlu revisi") agar bisa diperbaiki
+   dari perangkat mana pun. Setelah diperbaiki dan dikirim, ia hilang lagi. Isian yang disahkan terkunci.
+8. Perangkat yang mengirim isian melihat statusnya di beranda barcode (menunggu audit, revisi, atau disahkan) beserta catatan Irjen.
+9. BULAN DEPAN: buka menu Barcode, pilih bulan baru, tekan "Aktifkan bulan ini". Barcode baru dibuat, barcode bulan lalu otomatis
+   tidak berlaku, dan semua kementerian bisa mengisi satu kali lagi. Data bulan lalu tetap aman.
+Salah pilih kementerian atau perlu mengulang? Di menu Barcode, tabel "Status kementerian" punya tombol "Lepas penahan" (untuk yang
+sedang mengisi) dan "Hapus isian" (untuk yang sudah mengirim; nilai audit ikut terhapus).
 Isian yang belum dinilai Irjen ditandai "Belum dinilai" dan TIDAK ikut dalam rata-rata nilai dashboard dan ranking.
 Capaian KPI tetap dihitung otomatis dari target dan realisasi.
 
@@ -32,10 +40,13 @@ OPSI A: SUPABASE (disarankan, bisa 100% dari HP, tanpa PC)
 2. Menu SQL Editor > New query. Tempel isi supabase-audit.sql.
 3. SEBELUM Run: ganti tulisan GANTI-KODE-INI dengan kode rahasia admin (minimal 6 karakter). Lalu Run.
    Muncul "Success. No rows returned" = berhasil.
+   SUDAH PERNAH PASANG VERSI LAMA? Cukup tempel isi supabase-audit.sql yang baru lalu Run lagi. Data dan kode admin lama tetap aman,
+   isian lama otomatis diberi label bulan. Barcode per kementerian yang lama tidak berlaku lagi; aktifkan barcode bulanan di menu Barcode.
 4. Project Settings > API (atau tombol Connect): salin "Project URL" dan kunci "anon" atau "publishable".
    JANGAN pakai kunci service_role / secret.
 5. Edit config.js di GitHub (lewat HP juga bisa): isi AUDIT_SUPABASE_URL dan AUDIT_SUPABASE_KEY. Commit. Vercel otomatis deploy.
-6. Buka web admin, masuk dengan kode dari langkah 3, buka menu Barcode: kartu harus bertanda "Terverifikasi di server".
+6. Buka web admin, masuk dengan kode dari langkah 3, buka menu Barcode, pilih bulan, tekan "Aktifkan barcode". Kartu barcode dan
+   tabel status kementerian harus muncul tanpa pesan galat.
 Data isian bisa dilihat di Supabase > Table Editor > isian, dan bisa diekspor CSV.
 
 OPSI B: GOOGLE SHEETS + APPS SCRIPT (perlu mode "Situs desktop" di browser HP)
@@ -44,25 +55,33 @@ OPSI B: GOOGLE SHEETS + APPS SCRIPT (perlu mode "Situs desktop" di browser HP)
 3. Terapkan > Deployment baru > Aplikasi web. Jalankan sebagai: Saya. Akses: Siapa saja.
 4. Salin URL berakhiran /exec ke config.js (AUDIT_ENDPOINT).
    Tes: buka URL itu di browser, harus muncul "ok":true, "sheet":"terhubung".
-5. Bila kode skrip diubah, buat Deployment BARU lalu perbarui URL.
+5. Bila kode skrip diubah, buat Deployment BARU lalu perbarui URL. Sudah pakai versi lama? Ganti seluruh kode, jalankan "setup" sekali lagi.
 
 DEPLOY (GitHub + Vercel)
 1. Unggah seluruh isi folder ke repositori GitHub, hubungkan ke Vercel.
 2. Isi AUDIT_BASE di config.js dengan alamat situs, misalnya https://audit-samasta.vercel.app
-3. Buka index.html, masuk dengan kode admin, lalu buka menu Barcode (daftar kementerian otomatis dikirim ke server).
-4. Bila nama kementerian diubah atau barcode diganti, buka menu Barcode agar server diperbarui.
+3. Buka index.html, masuk dengan kode admin, lalu buka menu Barcode dan aktifkan barcode bulan ini.
+4. Perubahan nama atau penambahan kementerian terkirim ke server otomatis beberapa detik setelah disimpan (pastikan admin sedang masuk).
 
 MODE UJI (tanpa server)
 Selama belum ada sambungan server, semua data hanya di peramban ini dan kode akses admin memakai kode lama dari web audit kamu.
 Setelah server tersambung, kode akses diperiksa server.
 
 KEAMANAN
-- Barcode berisi token acak per kementerian; tanpa token, server menolak isian. Bila barcode bocor, klik "Ganti barcode".
-- Data admin tersimpan di peramban admin (backup lewat menu Laporan). Isian kementerian tersimpan di server.
+- Barcode berisi token acak per bulan yang dibuat dan disimpan di SERVER (bukan di peramban admin), jadi tidak hilang bila admin ganti HP.
+  Tanpa token yang aktif, server menolak pilihan dan isian. Bila barcode bocor, klik "Ganti barcode" di menu Barcode.
+- Aturan satu kali per kementerian dijaga di server (bukan hanya di tampilan), termasuk saat dua orang menekan bersamaan.
 - Server membaca isian dan menyimpan audit hanya dengan kode akses (10 kali salah = ditahan 10 menit).
 - Kunci anon/publishable Supabase memang publik. Tabel dikunci (RLS), hanya fungsi di SQL yang bisa dipakai.
+- Karena barcode dipakai bersama, siapa pun yang memegang barcode bisa memilih kementerian mana saja yang masih tersedia.
+  Bagikan hanya ke anggota kabinet, dan cek tabel Status kementerian bila ada yang salah pilih.
 
-BARCODE TIDAK BISA DIBUKA?
+BARCODE TIDAK BISA DIPINDAI / DIBUKA?
+- Tautan barcode kini pendek dan memakai tanda tanya (isi.html?k=KODE), bukan tanda pagar, supaya tetap utuh di pemindai bawaan HP, Google Lens, dan WhatsApp.
+- Poster memuat tautan teks di bawah kodenya: bila kamera tetap gagal, ketik atau salin tautan itu ke peramban.
+- Cetak poster cukup besar (minimal selebar telapak tangan) dan jangan dikompres jadi gambar kecil di grup chat; kirim sebagai dokumen/file atau bagikan tautannya.
 - "Server audit belum tersambung": config.js belum berisi sambungan server.
-- "Barcode tidak berlaku": buka menu Barcode di web admin (daftar kementerian dikirim ke server), pastikan kartu bertanda ✓.
+- "Barcode bulan lalu": admin sudah mengaktifkan bulan baru; pindai poster terbaru.
+- "Barcode tidak dikenali": barcode diganti admin atau salah salin. Buka menu Barcode, unduh poster terbaru.
+- "Barcode lama sudah tidak berlaku": itu barcode per kementerian versi lama. Gunakan barcode bulanan yang baru.
 - Alamat barcode berawalan localhost/192.168: isi AUDIT_BASE dengan alamat situs yang sudah di-deploy, lalu cetak ulang.

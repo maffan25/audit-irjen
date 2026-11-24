@@ -1,25 +1,40 @@
 /**
  * Audit Kinerja Kabinet Samasta: penerima isian kementerian dan penyimpan hasil audit.
- * Tempel seluruh kode ini di Google Sheets BARU: Ekstensi > Apps Script. Panduan: PANDUAN-AUDIT.txt
+ * VERSI BARCODE BULANAN: satu barcode untuk semua kementerian, tiap kementerian mengisi satu kali per bulan.
+ * Tempel seluruh kode ini di Google Sheets: Ekstensi > Apps Script. Panduan: PANDUAN-AUDIT.txt
+ * Sudah pernah memasang versi lama? Ganti seluruh kode dengan ini, jalankan "setup" sekali, lalu buat Deployment BARU.
  */
 var KODE_AKSES = '';     // WAJIB DIISI: kode rahasia admin, minimal 6 karakter. Sama dengan kode yang diketik di halaman admin.
 var SHEET_ID = '';       // OPSIONAL. Isi ID Spreadsheet bila skrip dibuat terpisah dari Sheet.
 var MAX_DATA = 20000;    // batas ukuran satu isian (karakter)
+var TAHAN = 3 * 3600 * 1000;   // pilihan kementerian ditahan 3 jam bila belum dikirim
+var MAKS_TAHAN = 3;      // satu perangkat paling banyak menahan 3 kementerian sekaligus
 
-function setup() {       // jalankan sekali
+function setup() {       // jalankan sekali (aman diulang)
   var ss = ss_();
-  [['Kementerian', ['ID', 'Nama', 'Kepala', 'Token', 'Periode']],
-   ['Isian', ['SID', 'Kementerian', 'Versi', 'Dibuat', 'Diubah', 'StatusAudit', 'Catatan', 'Skor', 'Data (JSON)']]
+  [['Kementerian', ['ID', 'Nama', 'Kepala', 'Token', 'Periode'], [1, 2]],
+   ['Isian', ['SID', 'Kementerian', 'Versi', 'Dibuat', 'Diubah', 'StatusAudit', 'Catatan', 'Skor', 'Data (JSON)', 'Bulan', 'Perangkat'], [1, 2, 10, 11]],
+   ['Bulan', ['Kode', 'Token', 'Aktif', 'Dibuat'], [1, 2]],
+   ['Klaim', ['Bulan', 'Kementerian', 'Perangkat', 'Sampai'], [1, 2, 3]]
   ].forEach(function (t) {
     var sh = ss.getSheetByName(t[0]) || ss.insertSheet(t[0]);
     if (sh.getLastRow() === 0) { sh.appendRow(t[1]); sh.setFrozenRows(1); }
-    sh.getRange(1, 1, sh.getMaxRows(), 2).setNumberFormat('@');
+    else if (sh.getLastColumn() < t[1].length) { sh.getRange(1, 1, 1, t[1].length).setValues([t[1]]); }
+    t[2].forEach(function (c) { sh.getRange(1, c, sh.getMaxRows(), 1).setNumberFormat('@'); });
   });
+  var sh = ss.getSheetByName('Isian');   // isian lama: isi kolom Bulan dari tanggal dibuat
+  if (sh.getLastRow() > 1) {
+    var v = sh.getRange(2, 1, sh.getLastRow() - 1, 11).getValues(), ch = false;
+    v.forEach(function (r) { if (!r[9] && r[3]) { r[9] = Utilities.formatDate(new Date(Number(r[3])), 'Asia/Jakarta', 'yyyy-MM'); ch = true; } });
+    if (ch) sh.getRange(2, 10, v.length, 1).setValues(v.map(function (r) { return [r[9]]; }));
+  }
 }
 function ss_() { return SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet(); }
 function reply_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
-function doGet() { return reply_({ ok: true, sheet: ss_() ? 'terhubung' : 'tidak', kode: KODE_AKSES.length >= 6 ? 'sudah diatur' : 'BELUM diatur' }); }
+function doGet() { return reply_({ ok: true, sheet: ss_() ? 'terhubung' : 'tidak', kode: KODE_AKSES.length >= 6 ? 'sudah diatur' : 'BELUM diatur', versi: 'barcode-bulanan' }); }
 function s_(v, n) { return String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').slice(0, n); }
+function sh_(n) { return ss_().getSheetByName(n); }
+function rows_(n, cols) { var sh = sh_(n); return sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, cols).getValues() : []; }
 function admin_(d) {     // kode dikirim lewat POST; 10 kali salah = ditahan 10 menit
   var c = CacheService.getScriptCache(), f = Number(c.get('gagal') || 0);
   if (f >= 10) return 'tunggu';
@@ -27,83 +42,171 @@ function admin_(d) {     // kode dikirim lewat POST; 10 kali salah = ditahan 10 
   if (String(d.kode || '') !== KODE_AKSES) { c.put('gagal', String(f + 1), 600); return 'kode'; }
   c.remove('gagal'); return '';
 }
-function kem_(mid, tk) {  // cari kementerian + cek token
-  var sh = ss_().getSheetByName('Kementerian'); if (!sh || sh.getLastRow() < 2) return null;
-  var v = sh.getRange(2, 1, sh.getLastRow() - 1, 5).getValues();
-  for (var i = 0; i < v.length; i++) if (String(v[i][0]) === String(mid)) return String(v[i][3]) === String(tk) && tk ? { nama: v[i][1], kepala: v[i][2], periode: v[i][4] } : null;
+function baru_() { return Utilities.getUuid().replace(/-/g, '').slice(0, 10); }
+function aktif_() {      // baris bulan yang aktif: {i: nomor baris, kode, token}
+  var v = rows_('Bulan', 4);
+  for (var i = 0; i < v.length; i++) if (v[i][2] === true || String(v[i][2]).toLowerCase() === 'true') return { i: i + 2, kode: String(v[i][0]), token: String(v[i][1]) };
   return null;
+}
+function tk_(tk) {       // '' = tidak dikenal, '!lama' = barcode bulan lalu, selain itu kode bulan aktif
+  if (!tk) return '';
+  var v = rows_('Bulan', 4);
+  for (var i = 0; i < v.length; i++) if (String(v[i][1]) === String(tk)) return (v[i][2] === true || String(v[i][2]).toLowerCase() === 'true') ? String(v[i][0]) : '!lama';
+  return '';
+}
+function bersih_() {     // hapus penahan yang sudah lewat waktu
+  var sh = sh_('Klaim'), n = Date.now(), v = rows_('Klaim', 4);
+  for (var i = v.length - 1; i >= 0; i--) if (Number(v[i][3]) <= n) sh.deleteRow(i + 2);
 }
 function doPost(e) {
   try {
-    var d = JSON.parse((e && e.postData && e.postData.contents) || '{}'), a = d.aksi;
-    if (a === 'masuk' || a === 'sinkron' || a === 'ambil' || a === 'audit') {
+    var d = JSON.parse((e && e.postData && e.postData.contents) || '{}'), a = d.aksi, adm = ['masuk', 'sinkron', 'ambil', 'audit', 'bulan', 'lepas'];
+    if (adm.indexOf(a) >= 0) {
       var er = admin_(d); if (er) return reply_({ ok: false, error: er });
       if (a === 'masuk') return reply_({ ok: true });
-      var lock = LockService.getScriptLock(); lock.waitLock(20000);
-      try { return reply_(a === 'sinkron' ? sinkron_(d) : a === 'ambil' ? ambil_() : audit_(d)); } finally { lock.releaseLock(); }
-    }
-    var k = kem_(d.mid, d.tk); if (!k) return reply_({ ok: false, error: 'tautan' });
-    if (a === 'info') return reply_({ ok: true, nama: k.nama, kepala: k.kepala, periode: k.periode });
-    if (a === 'status') return reply_(status_(d));
-    if (a === 'kirim') { var l2 = LockService.getScriptLock(); l2.waitLock(20000); try { return reply_(kirim_(d)); } finally { l2.releaseLock(); } }
-    return reply_({ ok: false, error: 'aksi' });
+    } else if (['buka', 'pilih', 'batal', 'kirim'].indexOf(a) < 0) return reply_({ ok: false, error: 'aksi' });
+    var lock = LockService.getScriptLock(); lock.waitLock(25000);
+    try {
+      var F = { sinkron: sinkron_, ambil: ambil_, audit: audit_, bulan: bulan_, lepas: lepas_, buka: buka_, pilih: pilih_, batal: batal_, kirim: kirim_ };
+      return reply_(F[a](d));
+    } finally { lock.releaseLock(); }
   } catch (err) { console.error(err); return reply_({ ok: false, error: 'server' }); }
 }
-function sinkron_(d) {   // admin mengirim daftar kementerian + token
-  var sh = ss_().getSheetByName('Kementerian'), L = d.daftar || [];
+function sinkron_(d) {   // admin mengirim daftar kementerian
+  var sh = sh_('Kementerian'), L = d.daftar || [];
   if (!Array.isArray(L) || L.length > 60) return { ok: false, error: 'data' };
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 5).clearContent();
   sh.getRange(1, 1, Math.max(sh.getMaxRows(), L.length + 1), 5).setNumberFormat('@');
-  if (L.length) sh.getRange(2, 1, L.length, 5).setValues(L.map(function (m) { return [s_(m.id, 40), s_(m.name, 120), s_(m.head, 120), s_(m.tk, 40), s_(m.periode, 20)]; }));
+  if (L.length) sh.getRange(2, 1, L.length, 5).setValues(L.map(function (m) { return [s_(m.id, 40), s_(m.name, 120), s_(m.head, 120), '', '']; }));
   return { ok: true };
 }
 function ambil_() {
-  var sh = ss_().getSheetByName('Isian'), out = [];
-  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues().forEach(function (r) {
+  var out = [];
+  rows_('Isian', 11).forEach(function (r) {
     var dt; try { dt = JSON.parse(r[8]); } catch (x) { dt = {}; }
-    out.push({ sid: r[0], mid: r[1], ver: r[2], at: r[3], upd: r[4], aud: r[5], cat: r[6], skor: r[7], data: dt });
+    out.push({ sid: r[0], mid: r[1], ver: r[2], at: r[3], upd: r[4], aud: r[5], cat: r[6], skor: r[7], bulan: String(r[9] || ''), data: dt });
   });
   return { ok: true, data: out };
 }
 function audit_(d) {     // admin menyimpan status audit + catatan
-  var sh = ss_().getSheetByName('Isian'), st = ['menunggu', 'revisi', 'sah'].indexOf(d.aud) >= 0 ? d.aud : 'menunggu';
-  if (sh.getLastRow() < 2) return { ok: false, error: 'tidak ada' };
-  var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  var sh = sh_('Isian'), st = ['menunggu', 'revisi', 'sah'].indexOf(d.aud) >= 0 ? d.aud : 'menunggu', ids = rows_('Isian', 1);
   for (var i = 0; i < ids.length; i++) if (ids[i][0] === d.sid) {
     sh.getRange(i + 2, 5).setValue(Date.now()); sh.getRange(i + 2, 6, 1, 3).setValues([[st, s_(d.cat, 1000), Number(d.skor) || '']]);
     return { ok: true };
   }
   return { ok: false, error: 'tidak ada' };
 }
-function status_(d) {    // kementerian melihat status isiannya sendiri
-  var sh = ss_().getSheetByName('Isian'), want = (d.sids || []).slice(0, 50), out = [];
-  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues().forEach(function (r) {
-    if (want.indexOf(r[0]) < 0 || String(r[1]) !== String(d.mid)) return;
-    var o = { sid: r[0], aud: r[5], cat: r[6], ver: r[2] };
-    if (r[5] === 'revisi') { try { o.data = JSON.parse(r[8]); } catch (x) {} }
-    out.push(o);
+function terakhir_(b, mid) {   // isian terbaru untuk satu kementerian pada satu bulan: {i, r} atau null
+  var v = rows_('Isian', 11), best = null;
+  for (var i = 0; i < v.length; i++) if (String(v[i][9]) === b && String(v[i][1]) === String(mid)) if (!best || Number(v[i][3]) >= Number(best.r[3])) best = { i: i + 2, r: v[i] };
+  return best;
+}
+function bulan_(d) {     // admin: aktifkan / baca barcode bulan ini
+  var b = String(d.bulan || ''), sh = sh_('Bulan');
+  if (b) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(b)) return { ok: false, error: 'data' };
+    var v = rows_('Bulan', 4), ada = -1;
+    for (var i = 0; i < v.length; i++) if (String(v[i][0]) === b) ada = i + 2;
+    if (ada < 0) { sh.appendRow([b, baru_(), false, Date.now()]); ada = sh.getLastRow(); }
+    else if (d.ganti) sh.getRange(ada, 2).setValue(baru_());
+    var n = sh.getLastRow() - 1;
+    if (n > 0) sh.getRange(2, 3, n, 1).setValues(Array.apply(null, Array(n)).map(function (x, k) { return [k + 2 === ada]; }));
+  }
+  var ak = aktif_(); if (!ak) return { ok: true, bulan: null };
+  bersih_();
+  var klaim = {}; rows_('Klaim', 4).forEach(function (r) { if (String(r[0]) === ak.kode) klaim[String(r[1])] = 1; });
+  var daftar = rows_('Kementerian', 3).filter(function (r) { return r[0] !== ''; }).map(function (r) {
+    var t = terakhir_(ak.kode, r[0]);
+    return { id: String(r[0]), nama: String(r[1]), kepala: String(r[2] || ''), st: t ? 'terkirim' : klaim[String(r[0])] ? 'mengisi' : 'kosong', aud: t ? t.r[5] : null, sid: t ? t.r[0] : null };
+  }).sort(function (x, y) { return x.nama.localeCompare(y.nama); });
+  return { ok: true, bulan: ak.kode, tk: ak.token, daftar: daftar };
+}
+function lepas_(d) {     // admin: bebaskan kementerian (lepas penahan, atau hapus isian bulan aktif)
+  var ak = aktif_(); if (!ak) return { ok: false, error: 'tidak ada' };
+  var kl = rows_('Klaim', 4), sk = sh_('Klaim');
+  for (var i = kl.length - 1; i >= 0; i--) if (String(kl[i][0]) === ak.kode && String(kl[i][1]) === String(d.mid)) sk.deleteRow(i + 2);
+  if (d.hapus) {
+    var is = rows_('Isian', 11), si = sh_('Isian');
+    for (var j = is.length - 1; j >= 0; j--) if (String(is[j][9]) === ak.kode && String(is[j][1]) === String(d.mid)) si.deleteRow(j + 2);
+  }
+  return { ok: true };
+}
+function cek_(d) {       // validasi token + perangkat; mengembalikan {err} atau {b}
+  var b = tk_(d.tk);
+  if (b === '!lama') return { err: 'lama' };
+  if (!b) return { err: 'tautan' };
+  if (String(d.dev || '').length < 8) return { err: 'perangkat' };
+  return { b: b };
+}
+function buka_(d) {
+  var c = cek_(d); if (c.err) return { ok: false, error: c.err };
+  var b = c.b, n = Date.now(), dev = String(d.dev);
+  bersih_();
+  var sk = sh_('Klaim'), kl = rows_('Klaim', 4);
+  kl.forEach(function (r, i) { if (String(r[0]) === b && String(r[2]) === dev) sk.getRange(i + 2, 4).setValue(n + TAHAN); });
+  kl = rows_('Klaim', 4).filter(function (r) { return String(r[0]) === b; });
+  var dipegang = {}; kl.forEach(function (r) { dipegang[String(r[1])] = String(r[2]); });
+  var daftar = [], saya = [];
+  rows_('Kementerian', 3).forEach(function (m) {
+    if (m[0] === '') return;
+    var mid = String(m[0]), t = terakhir_(b, mid), aud = t ? t.r[5] : null;
+    if ((!t || aud === 'revisi') && !dipegang[mid]) daftar.push({ id: mid, nama: String(m[1]), kepala: String(m[2] || ''), rv: aud === 'revisi' });
+    var item = { id: mid, nama: String(m[1]), kepala: String(m[2] || '') };
+    if (dipegang[mid] === dev) {
+      item.st = aud === 'revisi' ? 'revisi' : 'mengisi';
+      if (t) { item.sid = t.r[0]; item.aud = aud; item.cat = t.r[6]; item.ver = t.r[2]; if (aud === 'revisi') { try { item.data = JSON.parse(t.r[8]); } catch (x) {} } }
+      saya.push(item);
+    } else if (t && String(t.r[10]) === dev) {
+      item.st = 'terkirim'; item.sid = t.r[0]; item.aud = aud; item.cat = t.r[6]; item.ver = t.r[2]; saya.push(item);
+    }
   });
-  return { ok: true, data: out };
+  daftar.sort(function (x, y) { return x.nama.localeCompare(y.nama); });
+  return { ok: true, bulan: b, daftar: daftar, saya: saya };
+}
+function pilih_(d) {
+  var c = cek_(d); if (c.err) return { ok: false, error: c.err };
+  var b = c.b, n = Date.now(), dev = String(d.dev), mid = String(d.mid || '');
+  var ada = rows_('Kementerian', 1).some(function (r) { return String(r[0]) === mid; });
+  if (!ada) return { ok: false, error: 'tidak ada' };
+  var t = terakhir_(b, mid); if (t && t.r[5] !== 'revisi') return { ok: false, error: 'sudah' };
+  bersih_();
+  var sk = sh_('Klaim'), kl = rows_('Klaim', 4), baris = -1, milik = 0;
+  kl.forEach(function (r, i) {
+    if (String(r[0]) !== b) return;
+    if (String(r[1]) === mid) baris = i + 2; else if (String(r[2]) === dev) milik++;
+  });
+  if (baris > 0 && String(kl[baris - 2][2]) !== dev) return { ok: false, error: 'terpakai' };
+  if (milik >= MAKS_TAHAN) return { ok: false, error: 'batas' };
+  if (baris > 0) sk.getRange(baris, 4).setValue(n + TAHAN); else sk.appendRow([b, mid, dev, n + TAHAN]);
+  return { ok: true };
+}
+function batal_(d) {
+  var c = cek_(d); if (c.err) return { ok: false, error: c.err };
+  var sk = sh_('Klaim'), kl = rows_('Klaim', 4);
+  for (var i = kl.length - 1; i >= 0; i--) if (String(kl[i][0]) === c.b && String(kl[i][1]) === String(d.mid) && String(kl[i][2]) === String(d.dev)) sk.deleteRow(i + 2);
+  return { ok: true };
 }
 function kirim_(d) {
-  var x = d.data || {}, js = JSON.stringify(x);
+  var c = cek_(d); if (c.err) return { ok: false, error: c.err };
+  var b = c.b, n = Date.now(), dev = String(d.dev), mid = String(d.mid || ''), x = d.data || {}, js = JSON.stringify(x);
   if (js.length > MAX_DATA || !x.name || !x.obj) return { ok: false, error: 'data' };
   if (!Array.isArray(x.kpis) || !x.kpis.length || x.kpis.length > 20) return { ok: false, error: 'kpi' };
   var tw = 0; x.kpis.forEach(function (k) { tw += Number(k.w) || 0; });
   if (tw !== 100) return { ok: false, error: 'bobot' };
-  var sh = ss_().getSheetByName('Isian'), now = Date.now(), json = JSON.stringify(x);
-  if (d.sid) {           // perbaikan: hanya boleh bila belum disahkan dan milik kementerian yang sama
-    if (sh.getLastRow() > 1) {
-      var v = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues();
-      for (var i = 0; i < v.length; i++) if (v[i][0] === d.sid) {
-        if (String(v[i][1]) !== String(d.mid) || v[i][5] === 'sah') return { ok: false, error: 'terkunci' };
-        sh.getRange(i + 2, 3, 1, 4).setValues([[Number(v[i][2]) + 1, v[i][3], now, 'menunggu']]); sh.getRange(i + 2, 9).setValue(json);
-        return { ok: true, sid: d.sid };
-      }
-    }
-    return { ok: false, error: 'tidak ada' };
+  if (!rows_('Kementerian', 1).some(function (r) { return String(r[0]) === mid; })) return { ok: false, error: 'tidak ada' };
+  bersih_();
+  var sk = sh_('Klaim'), kl = rows_('Klaim', 4);
+  for (var i = 0; i < kl.length; i++) if (String(kl[i][0]) === b && String(kl[i][1]) === mid && String(kl[i][2]) !== dev) return { ok: false, error: 'terpakai' };
+  var si = sh_('Isian'), t = terakhir_(b, mid), sid;
+  if (t) {
+    if (t.r[5] !== 'revisi') return { ok: false, error: 'sudah' };
+    si.getRange(t.i, 3, 1, 4).setValues([[Number(t.r[2]) + 1, t.r[3], n, 'menunggu']]); si.getRange(t.i, 9).setValue(js); si.getRange(t.i, 11).setValue(dev);
+    sid = t.r[0];
+  } else {
+    sid = 'S' + n.toString(36) + Math.random().toString(36).slice(2, 6);
+    si.appendRow([sid, mid, 1, n, n, 'menunggu', '', '', js, b, dev]);
   }
-  var sid = 'S' + now.toString(36) + Math.random().toString(36).slice(2, 6);
-  sh.appendRow([sid, String(d.mid), 1, now, now, 'menunggu', '', '', json]);
+  kl = rows_('Klaim', 4);
+  for (var j = kl.length - 1; j >= 0; j--) if (String(kl[j][0]) === b && String(kl[j][1]) === mid) sk.deleteRow(j + 2);
   return { ok: true, sid: sid };
 }

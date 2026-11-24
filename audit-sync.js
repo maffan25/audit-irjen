@@ -4,8 +4,10 @@
 const kode=()=>window.ADM||(()=>{try{return sessionStorage.getItem('ak')||''}catch(e){return ''}})();
 const AL={menunggu:['Menunggu audit',2],revisi:['Perlu revisi',3],sah:['Disahkan',0]};
 const ab=a=>a&&AL[a]?`<span class="b f${AL[a][1]}">${AL[a][0]}</span>`:'';
-const tok=()=>Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);
-const lnk=m=>{if(!m.tk){m.tk=tok();save()}return AUDIT.base()+'/isi.html#m='+m.id+'&k='+m.tk};
+let BL=null,BLERR='';   /* barcode bulan aktif dari server: {bulan, tk, daftar} */
+const lnk=()=>BL&&BL.tk?AUDIT.base()+'/isi.html?k='+BL.tk:'';
+const bln=b=>{try{return new Date(b+'-01T00:00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric'})}catch(e){return b||''}};
+const nowB=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
 const waiting=()=>S.p.filter(p=>p.aud=='menunggu').length;
 
 /* ---- masuk: kode diperiksa server bila endpoint terisi ---- */
@@ -17,10 +19,12 @@ login=async function(){const v=$('#code').value.trim();window.ADM=v;
   else $('#er').textContent=r.error=='tunggu'?'Terlalu banyak percobaan salah. Tunggu 10 menit.':r.error=='jaringan'?'Server tidak terjangkau. Periksa sambungan server di config.js dan koneksi internet.':'Kode akses salah. Periksa kembali lalu coba lagi.'};
 
 /* ---- sinkronisasi ---- */
-async function pushM(q){const r=await AUDIT.api('sinkron',{kode:kode(),daftar:S.m.map(m=>({id:m.id,name:m.name,head:m.head,tk:(lnk(m),m.tk),periode:S.cfg.periode||''}))});
+let sigM='';const sigNow=()=>JSON.stringify(S.m.map(m=>[m.id,m.name,m.head]));
+async function pushM(q){if(!S.m.length){if(!q)toast('Belum ada kementerian untuk dikirim');return false}
+  const r=await AUDIT.api('sinkron',{kode:kode(),daftar:S.m.map(m=>({id:m.id,name:m.name,head:m.head}))});if(r.ok)sigM=sigNow();
   if(!q)toast(r.ok?'Daftar kementerian terkirim ke server':'Gagal mengirim daftar ('+(r.error||'?')+')');return r.ok}
 function merge(r){const d=r.data||{};let p=S.p.find(x=>x.sid==r.sid);if(!S.m.some(m=>m.id==r.mid))return 0;
-  const b={name:d.name||'(tanpa nama)',mid:r.mid,pic:d.pic||'',date:d.date||'',status:d.status||'Belum dimulai',type:d.type||'',period:d.period||'',budget:+d.budget||0,obj:d.obj||'',kr:d.kr||'',kpis:Array.isArray(d.kpis)?d.kpis:[],benef:+d.benef||0,outcome:d.outcome||'',evidence:d.evidence||''};
+  const b={name:d.name||'(tanpa nama)',mid:r.mid,pic:d.pic||'',date:d.date||'',status:d.status||'Belum dimulai',type:d.type||'',period:r.bulan||d.period||'',budget:+d.budget||0,obj:d.obj||'',kr:d.kr||'',kpis:Array.isArray(d.kpis)?d.kpis:[],benef:+d.benef||0,outcome:d.outcome||'',evidence:d.evidence||''};
   if(!p){S.p.push(Object.assign({id:uid(),sid:r.sid,src:'kementerian',weight:3,note:'',ver:r.ver,aud:r.aud||'menunggu',unscored:true,time:0,qual:0,adm:0,impact:0,sat:0,okr:0},b));lg('Isian baru dari '+mn(r.mid)+': '+b.name);return 1}
   if(r.ver>(p.ver||0)){Object.assign(p,b,{ver:r.ver,aud:'menunggu'});lg('Isian diperbarui oleh '+mn(r.mid)+': '+b.name);return 1}
   return 0}
@@ -29,6 +33,7 @@ async function pull(q){const r=await AUDIT.api('ambil',{kode:kode()});
   let n=0;(r.data||[]).forEach(x=>{n+=merge(x)});if(n)save();if(!q)toast(n?n+' isian baru atau diperbarui':'Belum ada isian baru');return n}
 async function pushA(p){if(!p.sid)return;const r=await AUDIT.api('audit',{kode:kode(),sid:p.sid,aud:p.aud,cat:p.note||'',skor:+sc(p).fin.toFixed(1)});if(!r.ok)toast('Tersimpan di sini, tetapi belum terkirim ke server')}
 let first=1;async function autoPull(){if(!first)return;first=0;await pushM(1);if(await pull(1))R(1)}
+setInterval(()=>{if(AU&&kode()&&S.m.length&&sigNow()!==sigM){sigM=sigNow();pushM(1)}},3000);
 window.syncNow=async()=>{await pushM(1);await pull();R(1)};
 
 /* ---- navigasi ---- */
@@ -66,28 +71,49 @@ PG.box=function(){const ps=S.p.filter(p=>p.src=='kementerian'),o={menunggu:0,rev
   return`<div class="hd"><div><h1>Kotak Masuk</h1><p>Isian yang dikirim kementerian lewat barcode. Buka satu isian untuk memeriksa dan memberi nilai audit.</p></div><button class="bt p" onclick="syncNow()">Tarik isian terbaru</button></div>
 ${AUDIT.uji()?'<div class="wn">Mode uji: server belum tersambung. Isian hanya terbaca dari peramban ini. Isi sambungan server di config.js (Supabase atau Apps Script, lihat PANDUAN-AUDIT.txt).</div>':''}
 <div class="gr gs" style="margin-bottom:16px">${card(cnt('menunggu'),'Menunggu audit',1)}${card(cnt('revisi'),'Perlu revisi')}${card(cnt('sah'),'Disahkan')}${card(ps.length,'Total isian')}</div>
-${ps.length?`<div class="cd ov"><table><tr><th>Program kerja</th><th>Kementerian</th><th>Penanggung jawab</th><th>Status</th><th>Capaian KPI</th><th>Status audit</th><th>Nilai Irjen</th></tr>${ps.map(p=>{const q=sc(p),s=q.fin;return`<tr class="cl" onclick="go('prk/${p.id}')"><td><b>${E(p.name)}</b></td><td>${E(mn(p.mid))}</td><td>${E(p.pic)}</td><td>${E(p.status)}</td><td>${N(q.kpi)}%</td><td>${ab(p.aud)}</td><td>${p.unscored?'<span class="pill">Belum dinilai</span>':N(s)+' '+bd(s)}</td></tr>`}).join('')}</table></div>`:empty('<h3>Belum ada isian</h3><p>Bagikan barcode tiap kementerian dari menu Barcode. Isian yang masuk akan muncul di sini.</p><p><button class="bt p" onclick="go(\'qr\')">Buka Barcode</button></p>')}`};
+${ps.length?`<div class="cd ov"><table><tr><th>Program kerja</th><th>Kementerian</th><th>Penanggung jawab</th><th>Status</th><th>Capaian KPI</th><th>Status audit</th><th>Nilai Irjen</th></tr>${ps.map(p=>{const q=sc(p),s=q.fin;return`<tr class="cl" onclick="go('prk/${p.id}')"><td><b>${E(p.name)}</b></td><td>${E(mn(p.mid))}</td><td>${E(p.pic)}</td><td>${E(p.status)}</td><td>${N(q.kpi)}%</td><td>${ab(p.aud)}</td><td>${p.unscored?'<span class="pill">Belum dinilai</span>':N(s)+' '+bd(s)}</td></tr>`}).join('')}</table></div>`:empty('<h3>Belum ada isian</h3><p>Bagikan barcode bulan ini dari menu Barcode. Isian yang masuk akan muncul di sini.</p><p><button class="bt p" onclick="go(\'qr\')">Buka Barcode</button></p>')}`};
 
-/* ---- Barcode ---- */
-const qsvg=(u,b)=>QR.svg(QR.make(u),{border:b??2,dark:'#0d2a38',light:'#ffffff'});
-function poster(m,cb){const u=lnk(m),q=QR.make(u),t=document.createElement('canvas');QR.canvas(t,q,12,3);const W=760,H=980,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+/* ---- Barcode: SATU barcode per bulan untuk semua kementerian ---- */
+const qsvg=(u,b)=>QR.svg(QR.make(u),{border:b??4,dark:'#0d2a38',light:'#ffffff'});
+const hostTxt=()=>lnk().replace(/^https?:\/\//,'');
+function poster(cb){const u=lnk(),q=QR.make(u),t=document.createElement('canvas');QR.canvas(t,q,14,4);const W=760,H=1040,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
   x.fillStyle='#fffbef';x.fillRect(0,0,W,H);x.fillStyle='#f8d24a';x.beginPath();x.moveTo(40,300);x.arc(W/2,300,W/2-40,Math.PI,0);x.lineTo(W-40,H-40);x.lineTo(40,H-40);x.closePath();x.fill();
-  x.fillStyle='#0d2a38';x.textAlign='center';x.font='600 40px Fraunces,Georgia,serif';x.fillText('Penilaian Kinerja',W/2,150);x.font='700 34px "Plus Jakarta Sans",sans-serif';x.fillText(m.name.slice(0,34),W/2,205);
-  const s=440;x.fillStyle='#fff';x.fillRect((W-s)/2-18,260,s+36,s+36);x.drawImage(t,(W-s)/2,278,s,s);
-  x.font='600 26px "Plus Jakarta Sans",sans-serif';x.fillText('Pindai untuk mengisi program kerja',W/2,790);x.font='500 20px "Plus Jakarta Sans",sans-serif';x.fillText('Kabinet Samasta · '+(S.cfg.periode||'Audit Kinerja'),W/2,830);cb(c.toDataURL('image/png'))}
-window.qrDl=id=>{const m=S.m.find(x=>x.id==id);poster(m,u=>{const a=document.createElement('a');a.href=u;a.download='barcode-'+m.name.replace(/[^\w]+/g,'-')+'.png';document.body.append(a);a.click();a.remove()})};
-window.qrCopy=async id=>{const m=S.m.find(x=>x.id==id);try{await navigator.clipboard.writeText(lnk(m));toast('Tautan disalin')}catch(e){prompt('Salin tautan ini:',lnk(m))}};
-window.qrReset=async id=>{const m=S.m.find(x=>x.id==id);if(!await ask(`Buat barcode baru untuk <b>${E(m.name)}</b>? Barcode dan tautan lama langsung tidak berlaku.`))return;m.tk=tok();lg('Mengganti barcode '+m.name);save();await pushM(1);R(1);toast('Barcode diganti. Bagikan yang baru.')};
-window.qrPrint=()=>{if(!S.m.length)return toast('Belum ada kementerian');$('#rpt').innerHTML=S.m.map(m=>`<section class="cv" style="padding-top:20mm"><img src="${LOGO}" alt=""><h1>${E(m.name)}</h1><h2>Penilaian Kinerja Program Kerja</h2><div style="width:90mm;margin:8mm auto">${qsvg(lnk(m),2)}</div><p>Pindai barcode, lalu isi data program kerja.</p><p style="color:#555;font-size:9pt">${E(AUDIT.base())}</p></section>`).join('');setTimeout(()=>print(),300)};
-async function verif(){const ok=await pushM(1);for(const m of S.m){const e=document.getElementById('vs_'+m.id);if(!e)continue;
-  if(AUDIT.uji()){e.textContent='Mode uji: hanya berlaku di perangkat ini';e.style.background='#fdeeb5';continue}
-  if(!ok){e.textContent='Gagal terhubung ke server';e.style.background='#f6d3d0';continue}
-  const r=await AUDIT.api('info',{mid:m.id,tk:m.tk});e.textContent=r.ok?'Terverifikasi di server ✓':'Ditolak server ('+(r.error||'?')+')';e.style.background=r.ok?'#cfe9df':'#f6d3d0'}}
-window.qrVerif=verif;
-PG.qr=function(){setTimeout(verif,50);const lh=/^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname)||location.protocol=='file:';
-  return`<div class="hd"><div><h1>Barcode Kementerian</h1><p>Setiap kementerian punya barcode sendiri. Isian yang dikirim langsung masuk ke Kotak Masuk untuk diaudit.</p></div><div class="fb"><button class="bt" onclick="qrVerif()">Periksa koneksi</button><button class="bt d" onclick="qrPrint()">Cetak semua barcode</button></div></div>
-${lh?'<div class="wn x">Alamat situs masih alamat lokal ('+E(location.host||'file')+'). Barcode tidak bisa dibuka dari HP kementerian. Setelah di-deploy, isi AUDIT_BASE di config.js dengan alamat situs.</div>':''}${AUDIT.uji()?'<div class="wn">Mode uji: server belum tersambung. Isian hanya tersimpan di peramban ini. Isi sambungan server di config.js (Supabase atau Apps Script) agar kementerian bisa mengirim dari perangkat mereka.</div>':''}
-${S.m.length?`<div class="gr">${S.m.map(m=>`<div class="cd qrc"><div class="arc"><h3 style="margin:0">${E(m.name)}</h3><p style="color:var(--gd);font-weight:600;margin:0">${E(m.head)}</p></div><div class="qq">${qsvg(lnk(m))}</div><span class="pill" id="vs_${m.id}">Memeriksa…</span><code>${E(lnk(m))}</code><div class="fb" style="justify-content:center;margin:0"><button class="bt s p" onclick="qrDl('${m.id}')">Unduh poster</button><button class="bt s" onclick="qrCopy('${m.id}')">Salin tautan</button><button class="bt s r" onclick="qrReset('${m.id}')">Ganti barcode</button></div></div>`).join('')}</div>`:empty('<h3>Belum ada kementerian</h3><p>Tambahkan kementerian dulu, barcode dibuat otomatis.</p><p><button class="bt p" onclick="go(\'min\')">Tambah kementerian</button></p>')}`};
+  x.fillStyle='#0d2a38';x.textAlign='center';x.font='600 42px Fraunces,Georgia,serif';x.fillText('Penilaian Kinerja',W/2,150);x.font='700 34px "Plus Jakarta Sans",sans-serif';x.fillText('Bulan '+bln(BL.bulan),W/2,205);
+  const s=460;x.fillStyle='#fff';x.fillRect((W-s)/2-14,262,s+28,s+28);x.drawImage(t,(W-s)/2,276,s,s);
+  x.font='600 28px "Plus Jakarta Sans",sans-serif';x.fillText('Pindai, pilih kementerian, lalu isi',W/2,806);x.font='500 20px "Plus Jakarta Sans",sans-serif';x.fillText('Satu isian per kementerian untuk bulan ini',W/2,844);
+  x.font='500 17px "Plus Jakarta Sans",sans-serif';x.fillText('Tidak bisa dipindai? Buka:',W/2,904);x.font='600 19px "Plus Jakarta Sans",sans-serif';x.fillText(hostTxt().slice(0,60),W/2,934);x.font='500 18px "Plus Jakarta Sans",sans-serif';x.fillText('Kabinet Samasta',W/2,990);cb(c.toDataURL('image/png'))}
+window.qrDl=()=>{if(!BL||!BL.tk)return;poster(u=>{const a=document.createElement('a');a.href=u;a.download='barcode-samasta-'+BL.bulan+'.png';document.body.append(a);a.click();a.remove()})};
+window.qrCopy=async()=>{try{await navigator.clipboard.writeText(lnk());toast('Tautan disalin')}catch(e){prompt('Salin tautan ini:',lnk())}};
+window.qrPrint=()=>{if(!BL||!BL.tk)return toast('Aktifkan barcode bulan ini dulu');$('#rpt').innerHTML=`<section class="cv" style="padding-top:20mm"><img src="${LOGO}" alt=""><h1>Penilaian Kinerja Program Kerja</h1><h2>Bulan ${E(bln(BL.bulan))}</h2><div style="width:110mm;margin:8mm auto">${qsvg(lnk(),4)}</div><p>Pindai barcode, pilih kementerian, lalu isi data program kerja.</p><p style="color:#555;font-size:10pt">Tidak bisa dipindai? Buka: ${E(hostTxt())}</p></section>`;setTimeout(()=>print(),300)};
+async function qrLoad(){const r=await AUDIT.api('bulan',{kode:kode(),bulan:'',ganti:false});
+  if(!r.ok){BLERR=r.error||'?';BL=null}else{BLERR='';BL=r.bulan?r:{bulan:null}}
+  const e=$('#qrx');if(e)e.innerHTML=qrView()}
+async function qrSet(ganti){const sel=($('#bl_in')||{}).value||nowB(),cur=BL&&BL.bulan;
+  if(ganti){if(!await ask(`Buat barcode baru untuk <b>${E(bln(sel))}</b>? Barcode dan tautan lama bulan ini langsung tidak berlaku, jadi poster yang sudah dibagikan harus diganti. Isian yang sudah masuk tetap aman.`))return}
+  else if(cur&&cur!==sel){if(!await ask(`Pindah ke <b>${E(bln(sel))}</b>? Barcode <b>${E(bln(cur))}</b> langsung tidak berlaku. Isian yang sudah masuk tetap aman, dan tiap kementerian bisa mengisi satu kali lagi di bulan baru.`))return}
+  await pushM(1);const r=await AUDIT.api('bulan',{kode:kode(),bulan:sel,ganti:!!ganti});
+  if(!r.ok){toast('Gagal ('+(r.error||'?')+')');return}
+  lg((ganti?'Mengganti barcode bulan ':'Mengaktifkan barcode bulan ')+sel);BL=r;BLERR='';toast(ganti?'Barcode diganti. Bagikan yang baru.':'Barcode bulan '+bln(sel)+' aktif');const e=$('#qrx');if(e)e.innerHTML=qrView()}
+window.qrSet=qrSet;
+window.qrFree=async(mid,hapus)=>{const m=S.m.find(x=>x.id==mid),nm=m?m.name:mid,d=BL&&BL.daftar.find(x=>x.id==mid);
+  if(hapus){if(!await ask(`Hapus isian <b>${E(nm)}</b> bulan ini? Kementerian ini bisa memilih dan mengisi lagi. Isian beserta nilai audit yang sudah ada ikut terhapus dari server dan Kotak Masuk.`))return}
+  else if(!await ask(`Lepas penahan <b>${E(nm)}</b>? Kementerian ini muncul lagi di daftar pilihan.`))return;
+  const r=await AUDIT.api('lepas',{kode:kode(),mid,hapus:!!hapus});if(!r.ok)return toast('Gagal ('+(r.error||'?')+')');
+  if(hapus&&d&&d.sid){S.p=S.p.filter(p=>p.sid!=d.sid);save()}
+  lg((hapus?'Menghapus isian ':'Melepas penahan ')+nm);toast(hapus?'Isian dihapus, kementerian dibebaskan':'Penahan dilepas');await qrLoad();R(1)};
+window.qrVerif=async()=>{await pushM();await qrLoad()};
+const STK={kosong:['Belum memilih','f5'],mengisi:['Sedang mengisi','f2'],terkirim:['Sudah mengirim','f0']};
+function qrView(){
+  const bs=`<div class="cd" style="margin-bottom:16px"><h3 style="margin:0 0 4px">Bulan barcode</h3><p class="hint" style="margin:0 0 10px;color:var(--mu)">Satu barcode dipakai semua kementerian selama satu bulan. Ganti bulan untuk membuat barcode baru; barcode bulan lalu otomatis tidak berlaku.</p><div class="fb" style="margin:0"><input id="bl_in" type="month" value="${E(BL&&BL.bulan||nowB())}" style="width:auto;flex:1 1 170px;max-width:220px;border-radius:999px" aria-label="Bulan penilaian"><button class="bt p" onclick="qrSet(0)">${BL&&BL.bulan?'Aktifkan bulan ini':'Aktifkan barcode'}</button></div></div>`;
+  if(BLERR)return bs+`<div class="wn x">${BLERR=='jaringan'?'Server tidak terjangkau. Periksa sambungan dan config.js.':BLERR=='belumkode'?'Kode admin di server belum diisi.':'Gagal memuat barcode ('+E(BLERR)+').'}</div>`;
+  if(!BL)return '<div class="em">Memuat barcode…</div>';
+  if(!BL.bulan)return bs+empty('<h3>Belum ada barcode aktif</h3><p>Pilih bulan di atas lalu tekan Aktifkan barcode. Barcode dibuat otomatis dan disimpan di server.</p>');
+  const L=BL.daftar||[],k=L.filter(x=>x.st=='terkirim').length,lh=!(window.AUDIT_BASE||'').trim()&&(/^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname)||location.protocol=='file:');
+  const warn=(lh?'<div class="wn x">Alamat situs masih alamat lokal ('+E(location.host||'file')+'). Barcode tidak bisa dibuka dari HP kementerian. Setelah di-deploy, isi AUDIT_BASE di config.js dengan alamat situs.</div>':'')+(AUDIT.uji()?'<div class="wn">Mode uji: server belum tersambung. Barcode hanya berlaku di peramban ini. Isi sambungan server di config.js (Supabase atau Apps Script).</div>':'')+(!L.length?'<div class="wn">Daftar kementerian di server masih kosong. Tambahkan kementerian di menu Kementerian, lalu tekan Periksa koneksi.</div>':'');
+  return bs+warn+`<div class="gr" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));align-items:start"><div class="cd qrc"><div class="arc"><h3 style="margin:0">Barcode ${E(bln(BL.bulan))}</h3><p style="color:var(--gd);font-weight:600;margin:0">Untuk semua kementerian</p></div><div class="qq" style="width:min(100%,300px)">${qsvg(lnk())}</div><span class="pill" style="margin-bottom:8px">${k} dari ${L.length} kementerian sudah mengirim</span><code style="word-break:break-all;font-size:.78rem">${E(lnk())}</code><div class="fb" style="justify-content:center;margin:10px 0 0"><button class="bt s p" onclick="qrDl()">Unduh poster</button><button class="bt s" onclick="qrCopy()">Salin tautan</button><button class="bt s d" onclick="qrPrint()">Cetak</button><button class="bt s" onclick="qrVerif()">Periksa koneksi</button><button class="bt s r" onclick="qrSet(1)">Ganti barcode</button></div></div>
+<div class="cd"><h3>Status kementerian bulan ini</h3><div class="stl2">${L.map(x=>{const t=STK[x.st]||STK.kosong;return`<div class="r"><b>${E(x.nama)}</b><span class="b ${t[1]}">${t[0]}</span>${x.aud?ab(x.aud):''}${x.st=='mengisi'?`<button class="bt s" onclick="qrFree('${E(x.id)}',0)">Lepas penahan</button>`:x.st=='terkirim'?`<button class="bt s r" onclick="qrFree('${E(x.id)}',1)">Hapus isian</button>`:''}</div>`}).join('')||'<p class="hint" style="color:var(--mu)">Belum ada kementerian.</p>'}</div><p class="hint" style="margin-top:10px;color:var(--mu)">Kementerian yang sudah mengirim atau sedang mengisi tidak muncul di daftar pilihan. Bila ada yang salah pilih, hapus isian atau lepas penahannya di sini. Isian yang diminta revisi muncul kembali di daftar pilihan.</p></div></div>`}
+PG.qr=function(){setTimeout(async()=>{await pushM(1);await qrLoad()},30);
+  return`<div class="hd"><div><h1>Barcode Kementerian</h1><p>Satu barcode untuk semua kementerian. Tiap kementerian memilih namanya lalu mengisi satu kali per bulan. Bulan depan, aktifkan bulan baru untuk barcode yang berbeda.</p></div></div><div id="qrx">${BL?qrView():'<div class="em">Memuat barcode…</div>'}</div>`};
 
 boot();if(AU)autoPull();
 })();
