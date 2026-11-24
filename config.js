@@ -10,7 +10,7 @@
       AUDIT_SUPABASE_URL : Project URL, contoh "https://abcdxyz.supabase.co"
       AUDIT_SUPABASE_KEY : kunci publik "anon" atau "publishable" (bukan service_role / secret!)
    B) Google Apps Script: isi AUDIT_ENDPOINT saja. */
-window.AUDIT_SUPABASE_URL = "https://zueapwyjymrcmlkufqqa.supabase.co";
-window.AUDIT_SUPABASE_KEY = "sb_publishable_ab32EYR-Z_D0Fug02-jOEg_qEwzsvvt";
+window.AUDIT_SUPABASE_URL = "https://nxvxciyulorwwinfidwo.supabase.co";
+window.AUDIT_SUPABASE_KEY = "sb_publishable_vBEysN2at40n04wlYFie-Q_HKcYnUq7";
 window.AUDIT_ENDPOINT = "";
 window.AUDIT_BASE = "";
